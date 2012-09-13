@@ -14,9 +14,6 @@ DEFAULT_RATE = 24
 def find_sound(in_fname, sil_lv=DEFAULT_SIL_LV, sil_dur=DEFAULT_SIL_DUR, label_before_dur=DEFAULT_LABEL_DUR, label_after_dur=DEFAULT_LABEL_DUR, rate=DEFAULT_RATE):
     if (sil_lv < 0) or (100 < sil_lv):
         raise Exception('error: silence level < 0 or 100 < sil_lv')
-    if sil_dur < label_before_dur + label_after_dur:
-        sil_dur = label_before_dur + label_after_dur + 0.05
-        #raise Exception('error: silence dur < (label before duration + label after duration)')
 
     wf = wave.open(in_fname, 'r')
 
@@ -28,6 +25,7 @@ def find_sound(in_fname, sil_lv=DEFAULT_SIL_LV, sil_dur=DEFAULT_SIL_DUR, label_b
     wf.close()
 
     labels = _find_sound(data, width, rate, sil_lv, sil_dur, label_before_dur, label_after_dur)
+    labels.subtract()
 
     return labels
 

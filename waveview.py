@@ -12,7 +12,7 @@ from findsound import find_sound, rms_ratecv, WAV_SCALE, DEFAULT_SIL_LV
 from labels import Labels, LBL_PAUSE, LBL_CUT
 from waveplayer import WavePlayer, EVT_UPDATE_ID, EVT_EOF_ID, EOFEvent
 
-debug = False
+DEBUG = False
 
 USE_BUFFERED_DC = True
 EVT_CHANGE_CUR_ID = wx.NewId()
@@ -21,7 +21,6 @@ ARROW_SIZE = 5
 MIN_RATE = 12
 MAX_RATE = 384
 DEFAULT_RATE = 96
-DIST = 35
 PPU = 20 # Pixels Per Unit
 INSERT_DUR = 0.5
 
@@ -81,6 +80,7 @@ class WaveView(wx.ScrolledWindow):
         self.ml = None
         self.labels_file = None
         self.drag_handle = NO_HANDLE
+        self.draw_handle_active = None
 
         al = ARROW_SIZE
         self.down_arrow = ((al, 0), (0, al*math.sqrt(3)), (-al, 0))
@@ -165,12 +165,13 @@ class WaveView(wx.ScrolledWindow):
             self._draw_wave(dc)
             self._draw_thres(dc)
             self._draw_labels(dc)
+            self._draw_handle_active(dc)
             self._draw_top_line(dc)
             self._draw_out_of_area(dc)
             self._draw_playing_position(dc)
             self._draw_focus(dc)
 
-        if debug:
+        if DEBUG:
             # Left Frame
             # Scroll Pos
             dc.SetPen(wx.BLACK_PEN)
@@ -291,12 +292,25 @@ class WaveView(wx.ScrolledWindow):
                     else:
                         rects_p.append(rect)
 
-
         if rects_p:
             self._draw_rects(dc, rects_p, '#333333')
 
         if rects_x:
             self._draw_rects(dc, rects_x, '#999999')
+
+    def _draw_handle_active(self, dc):
+        if self.playing or (self.draw_handle_active is None):
+            return
+
+        left, right = self.draw_handle_active
+
+        dc.SetPen(wx.Pen('#000000', 1, wx.DOT))
+        dc.SetBrush(wx.TRANSPARENT_BRUSH)
+
+        if left:
+            dc.DrawEllipticArc(left['x'] - self.handle_dist, left['y'] - self.handle_dist, self.handle_dist * 2, self.handle_dist * 2, -90, 90)
+        elif right:
+            dc.DrawEllipticArc(right['x'] - self.handle_dist, right['y'] - self.handle_dist, self.handle_dist * 2, self.handle_dist * 2, 90, 270)
 
     def _draw_rects(self, dc, rects, brush_color):
         prev_region = None
@@ -592,6 +606,8 @@ class WaveView(wx.ScrolledWindow):
         self.st_arrow_y = WAV_TOP + ((self.Height - WAV_TOP)/3)
         self.ed_arrow_y = WAV_TOP + ((self.Height - WAV_TOP)*2/3)
 
+        self.handle_dist = ((self.Height - WAV_TOP) / 3) / 2
+
         self.UpdateDrawing()
 
     def OnPaint(self, evt):
@@ -660,21 +676,14 @@ class WaveView(wx.ScrolledWindow):
             wx.PostEvent(self.listener, ChangeCurEvent())
         else:
             if not self.playing:
-                sel = self.ml().selected
-                if sel:
-                    # drag handle
-                    st = {'x': int(sel.start * self.rate) - self.left_f, 'y': self.st_arrow_y}
-                    ed = {'x': int(sel.end * self.rate) - self.left_f, 'y': self.ed_arrow_y}
-                    if self.collision_detection(st['x'], st['y'], evt.X, evt.Y, DIST):
-                        if st['x'] <= evt.X:
-                            self.drag_handle = LEFT_HANDLE
-                            self.ml.save()
-                            self.CaptureMouse()
-                    elif self.collision_detection(ed['x'], ed['y'], evt.X, evt.Y, DIST):
-                        if evt.X <= ed['x']:
-                            self.drag_handle = RIGHT_HANDLE
-                            self.ml.save()
-                            self.CaptureMouse()
+                if self.is_in_left_handle(evt.X, evt.Y):
+                    self.drag_handle = LEFT_HANDLE
+                    self.ml.save()
+                    self.CaptureMouse()
+                elif self.is_in_right_handle(evt.X, evt.Y):
+                    self.drag_handle = RIGHT_HANDLE
+                    self.ml.save()
+                    self.CaptureMouse()
 
                 if self.drag_handle == NO_HANDLE:
                     # select label
@@ -684,6 +693,30 @@ class WaveView(wx.ScrolledWindow):
                         wx.PostEvent(self.listener, ChangeCurEvent())
 
         self.UpdateDrawing()
+
+    def is_in_left_handle(self, x, y):
+        sel = self.ml().selected
+        if not sel:
+            return False
+
+        st = {'x': int(sel.start * self.rate) - self.left_f, 'y': self.st_arrow_y}
+        if self.collision_detection(st['x'], st['y'], x, y, self.handle_dist):
+            if st['x'] <= x:
+                return st
+
+        return False
+
+    def is_in_right_handle(self, x, y):
+        sel = self.ml().selected
+        if not sel:
+            return False
+
+        ed = {'x': int(sel.end * self.rate) - self.left_f, 'y': self.ed_arrow_y}
+        if self.collision_detection(ed['x'], ed['y'], x, y, self.handle_dist):
+            if x <= ed['x']:
+                return ed
+
+        return False
 
     def OnRightDown(self, evt):
         if self.drag_handle != NO_HANDLE:
@@ -707,15 +740,32 @@ class WaveView(wx.ScrolledWindow):
         if self.wp is None:
             return
 
-        if (self.drag_handle != NO_HANDLE) and self.ml().selected:
+        change_handle_active = False
+
+        if (self.drag_handle == NO_HANDLE) and self.ml().selected:
+            st = self.is_in_left_handle(evt.X, evt.Y)
+            ed = self.is_in_right_handle(evt.X, evt.Y)
+            if st:
+                self.draw_handle_active = (st, False)
+                change_handle_active = True
+                self.UpdateDrawing()
+            elif ed:
+                self.draw_handle_active = (False, ed)
+                change_handle_active = True
+                self.UpdateDrawing()
+        elif (self.drag_handle != NO_HANDLE) and self.ml().selected:
             cur_f = self.left_f + evt.X
             cur_s = float(cur_f) / self.rate
 
             if self.drag_handle == LEFT_HANDLE:
-                self.ml().change_sel(cur_s)
+                self.ml().change_sel(cur_s, None, evt.ShiftDown(), evt.ControlDown())
             elif self.drag_handle == RIGHT_HANDLE:
-                self.ml().change_sel(None, cur_s)
+                self.ml().change_sel(None, cur_s, evt.ShiftDown(), evt.ControlDown())
 
+            self.UpdateDrawing()
+
+        if self.draw_handle_active and (not change_handle_active):
+            self.draw_handle_active = None
             self.UpdateDrawing()
 
     def OnSetFocus(self, evt):
@@ -727,6 +777,9 @@ class WaveView(wx.ScrolledWindow):
         self.UpdateDrawing()
 
     def OnKeyDown(self, evt):
+        if self.wp is None:
+            return
+
         key = evt.GetKeyCode()
 
         if key == wx.WXK_NUMPAD_ADD:
@@ -759,6 +812,8 @@ class WaveView(wx.ScrolledWindow):
                 self.cut()
             elif (ch == 's' or ch == 'S') and evt.ControlDown():
                 self.save()
+            elif (ch == 'z' or ch == 'Z') and evt.ControlDown():
+                self.undo()
 
         self.UpdateDrawing()
         wx.PostEvent(self.listener, ChangeCurEvent())

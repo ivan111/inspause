@@ -4,6 +4,8 @@ MIN_DUR = 0.2
 LBL_PAUSE = 'p'
 LBL_CUT = 'x'
 
+NEAR_SEC = 0.1
+
 class Label:
     def __init__(self, start, end, label=LBL_PAUSE):
         if start > end:
@@ -160,23 +162,36 @@ class Labels(list):
         sel.start = sel.prev_start
         sel.end = sel.prev_end
 
-    def change_sel(self, start, end=None):
+    def change_sel(self, start, end=None, fit=False, near=False):
         if not self.selected:
             return
 
+        sel = self.selected
+
+        if fit and near:
+            near = False
+
         if start:
             prev_sel = self.get_prev_sel()
-            if self.selected.label == LBL_CUT:
-                start = max(start, min(prev_sel.end, self.selected.end))
-            self.selected.start = min(start, self.selected.end - MIN_DUR)
+
+            if fit or (sel.label == LBL_CUT):
+                start = max(start, min(prev_sel.end, sel.end))
+            sel.start = min(start, sel.end - MIN_DUR)
+
+            if near and (abs(prev_sel.end - sel.start) < NEAR_SEC):
+                prev_sel.end = max(prev_sel.start + MIN_DUR, sel.start)
 
         if end:
             next_sel = self.get_next_sel()
-            if next_sel and next_sel.label == LBL_CUT:
-                end = max(self.selected.start, min(end, next_sel.start))
+
+            if next_sel and (fit or (next_sel.label == LBL_CUT)):
+                end = max(sel.start, min(end, next_sel.start))
             elif next_sel:
-                end = max(self.selected.start, min(end, next_sel.end))
-            self.selected.end = max(end, self.selected.start + MIN_DUR)
+                end = max(sel.start, min(end, next_sel.end - 0.01))
+            sel.end = max(end, sel.start + MIN_DUR)
+
+            if next_sel and near and (abs(sel.end - next_sel.start) < NEAR_SEC):
+                next_sel.start = min(next_sel.end - MIN_DUR, sel.end)
 
     def can_cut(self, sec):
         for label in self:
@@ -258,6 +273,20 @@ class Labels(list):
                        overlapped.append(lbl)
 
         return overlapped
+
+    def subtract(self):
+        if len(self) == 0:
+            return
+
+        prev = self[0]
+
+        for label in self[1:]:
+            if (prev.start < label.start) and (label.start < prev.end):
+                label.start = prev.end
+            elif (label.start < prev.start) and (prev.end < label.end):
+                label.start = prev.end
+
+            prev = label
 
 
 

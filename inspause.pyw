@@ -114,14 +114,14 @@ class MainFrame(wx.Frame):
             sil_lv = int(conf.get('find', 'sil_lv'))
             self.sil_lv = max(0, min(sil_lv, 100))
             sil_dur = float(conf.get('find', 'sil_dur'))
-            self.sil_dur = max(0.1, min(sil_dur, 9.9))
+            self.sil_dur = max(0.01, min(sil_dur, 9.99))
             label_dur = float(conf.get('find', 'label_dur'))
-            self.label_dur = max(0.0, min(label_dur, 9.9))
+            self.label_dur = max(0.0, min(label_dur, 9.99))
 
             factor = float(conf.get('pause', 'factor'))
-            self.factor = max(0.1, min(factor, 9.9))
+            self.factor = max(0.01, min(factor, 9.99))
             add = float(conf.get('pause', 'add'))
-            self.add = max(0.0, min(add, 9.9))
+            self.add = max(0.0, min(add, 9.99))
 
             self.dir_name_conf = conf.get('dir', 'wav')
         except (NoSectionError, IOError, NoOptionError):
@@ -191,8 +191,8 @@ class MainFrame(wx.Frame):
 
         nc_sil_dur = masked.numctrl.NumCtrl(pnl_fs1) 
         nc_sil_dur.SetAllowNegative(False) 
-        nc_sil_dur.SetIntegerWidth(2)
-        nc_sil_dur.SetFractionWidth(1)
+        nc_sil_dur.SetIntegerWidth(3)
+        nc_sil_dur.SetFractionWidth(2)
         nc_sil_dur.SetValue(self.sil_dur)
         self.nc_sil_dur = nc_sil_dur
         hb.Add(self.nc_sil_dur, flag=wx.LEFT, border=5)
@@ -212,8 +212,8 @@ class MainFrame(wx.Frame):
 
         nc_lbl_dur = masked.numctrl.NumCtrl(pnl_fs2) 
         nc_lbl_dur.SetAllowNegative(False) 
-        nc_lbl_dur.SetIntegerWidth(2)
-        nc_lbl_dur.SetFractionWidth(1)
+        nc_lbl_dur.SetIntegerWidth(3)
+        nc_lbl_dur.SetFractionWidth(2)
         nc_lbl_dur.SetValue(self.label_dur)
         self.nc_lbl_dur = nc_lbl_dur
         hb.Add(self.nc_lbl_dur, flag=wx.LEFT, border=5)
@@ -270,8 +270,8 @@ class MainFrame(wx.Frame):
 
         nc_add = masked.numctrl.NumCtrl(pnl_ip2) 
         nc_add.SetAllowNegative(False) 
-        nc_add.SetIntegerWidth(2)
-        nc_add.SetFractionWidth(1)
+        nc_add.SetIntegerWidth(3)
+        nc_add.SetFractionWidth(2)
         nc_add.SetValue(self.add)
         self.nc_add = nc_add
         hb.Add(nc_add)
