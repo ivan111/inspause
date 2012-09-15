@@ -312,42 +312,42 @@ class MainFrame(wx.Frame):
 
         self.tb = self.CreateToolBar()
         tb_head = self.tb.AddLabelTool(ID_HEAD, 'Head', wx.Bitmap('icon/head.png'))
-        tb_head.ShortHelp = u'先頭へ'
+        tb_head.ShortHelp = u'先頭へ(Home)'
         tb_play = self.tb.AddLabelTool(ID_PLAY, 'Play', wx.Bitmap('icon/play.png'))
-        tb_play.ShortHelp = u'再生'
+        tb_play.ShortHelp = u'再生(Space)'
         tb_playpause = self.tb.AddLabelTool(ID_PLAYPAUSE, 'Pause Mode Play', wx.Bitmap('icon/playpause.png'))
         tb_playpause.ShortHelp = u'ポーズモード再生'
         tb_playsel = self.tb.AddLabelTool(ID_PLAYSEL, 'Play Selected Range', wx.Bitmap('icon/playsel.png'))
-        tb_playsel.ShortHelp = u'選択範囲を再生'
+        tb_playsel.ShortHelp = u'選択範囲を再生(s)'
         tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border', wx.Bitmap('icon/playborder.png'))
-        tb_playborder.ShortHelp = u'境界を再生'
+        tb_playborder.ShortHelp = u'境界を再生(b)'
         tb_pause = self.tb.AddLabelTool(ID_PAUSE, 'Pause', wx.Bitmap('icon/pause.png'))
-        tb_pause.ShortHelp = u'一時停止'
+        tb_pause.ShortHelp = u'一時停止(Space)'
         tb_tail = self.tb.AddLabelTool(ID_TAIL, 'Tail', wx.Bitmap('icon/tail.png'))
-        tb_tail.ShortHelp = u'末尾へ'
+        tb_tail.ShortHelp = u'末尾へ(End)'
         tb_zoomin = self.tb.AddLabelTool(ID_ZOOMIN, 'Zooom In', wx.Bitmap('icon/zoomin.png'))
-        tb_zoomin.ShortHelp = u'拡大'
+        tb_zoomin.ShortHelp = u'拡大(+)'
         tb_zoomout = self.tb.AddLabelTool(ID_ZOOMOUT, 'Zooom Out', wx.Bitmap('icon/zoomout.png'))
-        tb_zoomout.ShortHelp = u'縮小'
+        tb_zoomout.ShortHelp = u'縮小(-)'
 
         self.tb.AddSeparator()
 
         tb_cut = self.tb.AddLabelTool(ID_CUT, 'Cut', wx.Bitmap('icon/cut.png'))
-        tb_cut.ShortHelp = u'分割'
+        tb_cut.ShortHelp = u'分割(c)'
         tb_mergel = self.tb.AddLabelTool(ID_MERGE_L, 'Merge Left', wx.Bitmap('icon/mergeleft.png'))
         tb_mergel.ShortHelp = u'左と結合'
         tb_merger = self.tb.AddLabelTool(ID_MERGE_R, 'Merge Right', wx.Bitmap('icon/mergeright.png'))
         tb_merger.ShortHelp = u'右と結合'
         tb_undo = self.tb.AddLabelTool(ID_UNDO, 'Undo', wx.Bitmap('icon/undo.png'))
-        tb_undo.ShortHelp = u'元に戻す'
+        tb_undo.ShortHelp = u'元に戻す(Ctrl+z)'
         tb_redo = self.tb.AddLabelTool(ID_REDO, 'Redo', wx.Bitmap('icon/redo.png'))
         tb_redo.ShortHelp = u'やり直し'
         tb_save = self.tb.AddLabelTool(ID_SAVE, 'Save', wx.Bitmap('icon/save.png'))
-        tb_save.ShortHelp = u'ポーズ情報の保存'
+        tb_save.ShortHelp = u'ポーズ情報の保存(Ctrl+s)'
         tb_insert = self.tb.AddLabelTool(ID_INSERT, 'Insert Label', wx.Bitmap('icon/insert.png'))
         tb_insert.ShortHelp = u'ポーズの挿入'
         tb_remove = self.tb.AddLabelTool(ID_REMOVE, 'Remove Label', wx.Bitmap('icon/remove.png'))
-        tb_remove.ShortHelp = u'ポーズの削除'
+        tb_remove.ShortHelp = u'ポーズの削除(Delete)'
         self.tb.Realize()
 
         self.Bind(wx.EVT_TOOL, self.OnSave, tb_save)
