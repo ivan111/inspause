@@ -10,8 +10,8 @@ EVT_UPDATE_ID = wx.NewId()
 EVT_EOF_ID = wx.NewId()
 CHUNK = 1024
 
-PB_DUR = 1
-PB_PAUSE_SEC = 1
+PB_DUR = 0.5
+PB_PAUSE_SEC = 0.5
 
 
 class UpdateEvent(wx.PyEvent):
