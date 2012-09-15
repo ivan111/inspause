@@ -10,6 +10,10 @@ EVT_UPDATE_ID = wx.NewId()
 EVT_EOF_ID = wx.NewId()
 CHUNK = 1024
 
+PB_DUR = 1
+PB_PAUSE_SEC = 1
+
+
 class UpdateEvent(wx.PyEvent):
     def __init__(self, cur_f):
         wx.PyEvent.__init__(self)
@@ -160,6 +164,23 @@ class WavePlayer(threading.Thread):
                 self.start_cur_f = self.min_f
             else:
                 self.start_cur_f = self.cur_f
+
+        self.playing = True
+
+    def play_border(self, border_s):
+        self.pause_mode = True
+
+        self.min_f = int((border_s - PB_DUR) * self.framerate)
+        self.min_f = max(0, self.min_f)
+        self.max_f = int((border_s + PB_DUR) * self.framerate)
+        self.max_f = min(self.max_f, self.nframes)
+        self.cur_f = self.min_f
+        self.start_cur_f = self.cur_f
+
+        ed_f = int(border_s * self.framerate)
+        nframes = int(PB_PAUSE_SEC * self.framerate)
+        self.pause_list = [[ed_f, nframes]]
+        self.cut_list = []
 
         self.playing = True
 

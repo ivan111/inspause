@@ -30,6 +30,7 @@ ID_HEAD = wx.NewId()
 ID_PLAY = wx.NewId()
 ID_PLAYPAUSE = wx.NewId()
 ID_PLAYSEL = wx.NewId()
+ID_PLAYBORDER = wx.NewId()
 ID_PAUSE = wx.NewId()
 ID_TAIL = wx.NewId()
 ID_ZOOMIN = wx.NewId()
@@ -318,6 +319,8 @@ class MainFrame(wx.Frame):
         tb_playpause.ShortHelp = u'ポーズモード再生'
         tb_playsel = self.tb.AddLabelTool(ID_PLAYSEL, 'Play Selected Range', wx.Bitmap('icon/playsel.png'))
         tb_playsel.ShortHelp = u'選択範囲を再生'
+        tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border', wx.Bitmap('icon/playborder.png'))
+        tb_playborder.ShortHelp = u'境界を再生'
         tb_pause = self.tb.AddLabelTool(ID_PAUSE, 'Pause', wx.Bitmap('icon/pause.png'))
         tb_pause.ShortHelp = u'一時停止'
         tb_tail = self.tb.AddLabelTool(ID_TAIL, 'Tail', wx.Bitmap('icon/tail.png'))
@@ -352,6 +355,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.OnPlay, tb_play)
         self.Bind(wx.EVT_TOOL, self.OnPlayPause, tb_playpause)
         self.Bind(wx.EVT_TOOL, self.OnPlaySel, tb_playsel)
+        self.Bind(wx.EVT_TOOL, self.OnPlayBorder, tb_playborder)
         self.Bind(wx.EVT_TOOL, self.OnPause, tb_pause)
         self.Bind(wx.EVT_TOOL, self.OnTail, tb_tail)
         self.Bind(wx.EVT_TOOL, self.OnZoomIn, tb_zoomin)
@@ -371,6 +375,7 @@ class MainFrame(wx.Frame):
         self.tb.EnableTool(ID_PLAY, self.view.can_play())
         self.tb.EnableTool(ID_PLAYPAUSE, self.view.can_pause_mode_play())
         self.tb.EnableTool(ID_PLAYSEL, self.view.can_playsel())
+        self.tb.EnableTool(ID_PLAYBORDER, self.view.can_play_border())
         self.tb.EnableTool(ID_PAUSE, self.view.can_pause())
         self.tb.EnableTool(ID_TAIL, self.view.can_tail())
         self.tb.EnableTool(ID_ZOOMIN, self.view.can_zoomin())
@@ -563,6 +568,11 @@ class MainFrame(wx.Frame):
 
     def OnPlaySel(self, evt):
         self.view.playsel()
+        self.set_enable()
+        self.tb.EnableTool(ID_HEAD, True)
+
+    def OnPlayBorder(self, evt):
+        self.view.play_border()
         self.set_enable()
         self.tb.EnableTool(ID_HEAD, True)
 

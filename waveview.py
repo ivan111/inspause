@@ -81,6 +81,7 @@ class WaveView(wx.ScrolledWindow):
         self.labels_file = None
         self.drag_handle = NO_HANDLE
         self.draw_handle_active = None
+        self.drag_scroll = False
 
         al = ARROW_SIZE
         self.down_arrow = ((al, 0), (0, al*math.sqrt(3)), (-al, 0))
@@ -442,6 +443,18 @@ class WaveView(wx.ScrolledWindow):
         else:
             return False
 
+    def play_border(self):
+        if not self.can_play_border():
+            return
+
+        self.wp.play_border(self.ml().selected.end)
+
+    def can_play_border(self):
+        if self.wp and self.wp.can_play() and self.ml and self.ml().selected:
+            return True
+        else:
+            return False
+
     def pause(self):
         if not self.can_pause():
             return
@@ -665,6 +678,8 @@ class WaveView(wx.ScrolledWindow):
         if self.wp is None:
             return
 
+        drag_scroll = True
+
         cur_f = self.left_f + evt.X
 
         if evt.Y < WAV_TOP:
@@ -674,16 +689,20 @@ class WaveView(wx.ScrolledWindow):
             self.wp.cur_f = src_f
             self.wp.pause_f = 0
             wx.PostEvent(self.listener, ChangeCurEvent())
+            drag_scroll = False
         else:
             if not self.playing:
+                # drag handle
                 if self.is_in_left_handle(evt.X, evt.Y):
                     self.drag_handle = LEFT_HANDLE
                     self.ml.save()
                     self.CaptureMouse()
+                    drag_scroll = False
                 elif self.is_in_right_handle(evt.X, evt.Y):
                     self.drag_handle = RIGHT_HANDLE
                     self.ml.save()
                     self.CaptureMouse()
+                    drag_scroll = False
 
                 if self.drag_handle == NO_HANDLE:
                     # select label
@@ -691,6 +710,10 @@ class WaveView(wx.ScrolledWindow):
                         cur_s = float(cur_f) / self.rate
                         self.ml().select(cur_s)
                         wx.PostEvent(self.listener, ChangeCurEvent())
+
+        if drag_scroll and (not self.playing):
+            self.drag_scroll = evt.X
+            self.drag_scroll_left_f = self.left_f
 
         self.UpdateDrawing()
 
@@ -718,6 +741,13 @@ class WaveView(wx.ScrolledWindow):
 
         return False
 
+    def OnLeftUp(self, evt):
+        if self.drag_handle != NO_HANDLE:
+            self.ReleaseMouse()
+            wx.PostEvent(self.listener, ChangeCurEvent())
+        self.drag_handle = NO_HANDLE
+        self.drag_scroll = False
+
     def OnRightDown(self, evt):
         if self.drag_handle != NO_HANDLE:
             self.ml.restore()
@@ -729,12 +759,6 @@ class WaveView(wx.ScrolledWindow):
                 overlapped = self.ml().get_overlapped(sel)
                 if len(overlapped) == 0:
                     self.PopupMenu(MyPopupMenu(self), evt.GetPosition())
-
-    def OnLeftUp(self, evt):
-        if self.drag_handle != NO_HANDLE:
-            self.ReleaseMouse()
-            wx.PostEvent(self.listener, ChangeCurEvent())
-        self.drag_handle = NO_HANDLE
 
     def OnMotion(self, evt):
         if self.wp is None:
@@ -764,6 +788,10 @@ class WaveView(wx.ScrolledWindow):
 
             self.UpdateDrawing()
 
+        if self.drag_scroll and (not self.playing):
+            self.left_f = self.drag_scroll_left_f + (self.drag_scroll - evt.X)
+            self.UpdateDrawing()
+
         if self.draw_handle_active and (not change_handle_active):
             self.draw_handle_active = None
             self.UpdateDrawing()
@@ -791,8 +819,6 @@ class WaveView(wx.ScrolledWindow):
         elif key == wx.WXK_SPACE:
             if self.can_pause():
                 self.pause()
-            elif evt.ControlDown() and self.can_playsel():
-                self.playsel()
             elif self.can_play():
                 self.play()
         elif key == wx.WXK_HOME:
@@ -808,10 +834,15 @@ class WaveView(wx.ScrolledWindow):
 
         if (32 <= key) and (key <= 127):
             ch = chr(key)
-            if ch == 'c' or ch == 'C':
+            if ch == 'b' or ch == 'B':
+                self.play_border()
+            elif ch == 'c' or ch == 'C':
                 self.cut()
-            elif (ch == 's' or ch == 'S') and evt.ControlDown():
-                self.save()
+            elif ch == 's' or ch == 'S':
+                if evt.ControlDown():
+                    self.save()
+                else:
+                    self.playsel()
             elif (ch == 'z' or ch == 'Z') and evt.ControlDown():
                 self.undo()
 
