@@ -1,18 +1,64 @@
+# -*- coding: utf-8 -*-
+
 import re
 
-MIN_DUR = 0.2
-LBL_PAUSE = 'p'
-LBL_CUT = 'x'
+MIN_DUR = 0.1  # ラベルの最小長さ
+LBL_PAUSE = 'p'  # ポーズ挿入ラベル
+LBL_CUT = 'x'  # 選択範囲カットラベル
 
-NEAR_SEC = 0.1
+NEAR_SEC = 0.1  # 近い隣接範囲を同時に動かすときに使用
 
-class Label:
+
+class Label(object):
     def __init__(self, start, end, label=LBL_PAUSE):
+        self.validate_time(start, end)
+        self.validate_label(label)
+
+        self._start = start
+        self._end = end
+        self._label = label
+
+    def __str__(self):
+        return '%.6f\t%.6f\t%s' % (self._start, self._end, self._label)
+
+    def validate_time(self, start, end):
         if start > end:
-            raise Exception('[Label]error: start > end')
-        self.start = start
-        self.end = end
-        self.label = label
+            raise Exception('[Label] Error: start(%d) > end(%d)' %
+                            (start, end))
+        elif end - start < MIN_DUR:
+            raise Exception('[Label] Error: start(%d) - end(%d) < MIN_DUR(%d)'
+                            % (start, end, MIN_DUR))
+
+    def validate_label(self, label):
+        if (label != LBL_PAUSE) and (label != LBL_CUT):
+            raise Exception('[Label] Error: "%s" is not support label' %
+                            label)
+
+    def get_start(self):
+        return self._start
+
+    def set_start(self, start):
+        self._start = max(0, min(start, self._end - MIN_DUR))
+
+    start = property(get_start, set_start)
+
+    def get_end(self):
+        return self._end
+
+    def set_end(self, end):
+        self._end = max(self._start + MIN_DUR, end)
+
+    end = property(get_end, set_end)
+
+    def get_label(self):
+        return self._label
+
+    def set_label(self, label):
+        self.validate_label(label)
+        self._label = label
+
+    label = property(get_label, set_label)
+
 
 class Labels(list):
     def __init__(self, lines=None):
@@ -20,23 +66,26 @@ class Labels(list):
             lines = []
 
         self.selected = None
-        r = re.compile(r'^(\d+\.?\d*)\s+(\d+\.?\d*)\s+(.*)')
+        r = re.compile(r'^(\d+(\.\d{0,6})?)\s+(\d+(\.\d{0,6})?)\s+(.*)')
 
         for line in lines:
             m = r.search(line)
             if m is None:
                 continue
             st = float(m.group(1))
-            ed = float(m.group(2))
-            label = m.group(3)
-            if label != LBL_PAUSE and label != LBL_CUT:
-                label = LBL_PAUSE
-            self.append(Label(st, ed, label))
+            ed = float(m.group(3))
+            lbl = m.group(5).strip()
+            try:
+                label = Label(st, ed, lbl)
+            except:
+                continue
+            self.append(label)
 
         self.sort(key=lambda label: label.end)
 
         self.clean_data()
 
+    # LBL_CUTのラベルが他のラベルと重ならないように修正する
     def clean_data(self):
         if 1 <= len(self):
             prev_label = self[0]
@@ -48,30 +97,24 @@ class Labels(list):
 
             prev_label = label
 
+    def __str__(self):
+        return '\n'.join([str(label) for label in self])
+
     def write(self, file_name):
         self.sort(key=lambda label: label.end)
 
         f = open(file_name, 'w')
-
-        for label in self:
-            f.write('%.6f\t%.6f\t%s\n' % (label.start, label.end, label.label))
-
+        f.write(str(self))
         f.close()
 
-    def __str__(self):
-        result = ''
-
-        for label in self:
-            result = result + '%.6f\t%.6f\t%s\n' % (label.start, label.end, label.label)
-
-        return result
-
+    # 指定した位置（秒）のラベルを選択する
+    # 重なっている場合はサイクリックに選択する
     def select(self, sec):
         found_labels = []
         for label in self:
             if (label.start <= sec) and (sec <= label.end):
                 found_labels.append(label)
-                
+
         if 1 == len(found_labels):
             self.selected = found_labels[0]
         elif 1 < len(found_labels):
@@ -80,10 +123,10 @@ class Labels(list):
             elif self.selected not in found_labels:
                 self.selected = found_labels[0]
             else:
-                i = found_labels.index(self.selected)
-                if i+1 == len(found_labels):
-                    i = -1
-                self.selected = found_labels[i+1]
+                i = found_labels.index(self.selected) + 1
+                if i == len(found_labels):
+                    i = 0
+                self.selected = found_labels[i]
 
     def insert_label(self, pos, dur, max_s):
         if (pos < 0) or (max_s < pos):
@@ -92,7 +135,7 @@ class Labels(list):
         prev_s = 0
         next_s = max_s
 
-        for label in  self:
+        for label in self:
             if (label.start <= pos) and (pos <= label.end):
                 return
 
@@ -123,7 +166,7 @@ class Labels(list):
         prev_s = 0
         next_s = max_s
 
-        for label in  self:
+        for label in self:
             if (label.start <= pos) and (pos <= label.end):
                 return False
 
@@ -190,7 +233,8 @@ class Labels(list):
                 end = max(sel.start, min(end, next_sel.end - 0.01))
             sel.end = max(end, sel.start + MIN_DUR)
 
-            if next_sel and near and (abs(sel.end - next_sel.start) < NEAR_SEC):
+            if next_sel and near and \
+                    (abs(sel.end - next_sel.start) < NEAR_SEC):
                 next_sel.start = min(next_sel.end - MIN_DUR, sel.end)
 
     def can_cut(self, sec):
@@ -209,9 +253,9 @@ class Labels(list):
                 new_label = Label(sec, label.end)
                 label.end = sec
                 break
-            
+
         if cut_i != -1:
-            self.insert(cut_i+1, new_label)
+            self.insert(cut_i + 1, new_label)
 
     def can_merge_left(self):
         if self.get_prev_sel():
@@ -268,9 +312,9 @@ class Labels(list):
         for lbl in self:
             if (label is not lbl):
                 if (label.start < lbl.start and lbl.start < label.end) or \
-                   (label.start < lbl.end and lbl.end < label.end) or \
-                   (lbl.start < label.start and label.end < lbl.end):
-                       overlapped.append(lbl)
+                        (label.start < lbl.end and lbl.end < label.end) or \
+                        (lbl.start < label.start and label.end < lbl.end):
+                    overlapped.append(lbl)
 
         return overlapped
 
@@ -287,6 +331,3 @@ class Labels(list):
                 label.start = prev.end
 
             prev = label
-
-
-

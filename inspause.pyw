@@ -4,18 +4,33 @@ import codecs
 from ConfigParser import SafeConfigParser, NoSectionError, NoOptionError
 import os
 import random
+import sys
 import threading
 
+already_exists = False
+
 try:
+    import win32event
     import win32api
+    import winerror
+    handle = win32event.CreateMutex(None, 1, 'inspause mutex')
+    if win32api.GetLastError() == winerror.ERROR_ALREADY_EXISTS:
+        # 多重起動しない
+        already_exists = True
 except:
     pass
+
+if already_exists:
+    sys.exit(1)
 
 import wx
 import wx.lib.masked as masked
 import wx.xrc as xrc
 
-from findsound import find_sound, DEFAULT_SIL_LV, DEFAULT_SIL_DUR, DEFAULT_LABEL_DUR
+import persist
+
+from findsound import find_sound
+from findsound import DEFAULT_SIL_LV, DEFAULT_SIL_DUR, DEFAULT_LABEL_DUR
 from insertpause import insert_pause, DEFAULT_FACTOR, DEFAULT_ADD
 from labels import Labels
 from waveview import WaveView, EVT_CHANGE_CUR_ID, EVT_EOF_ID
@@ -25,11 +40,11 @@ CONFIG_FILE = 'settings.ini'
 LABELS_DIR = 'labels'
 PAUSE_DIR = 'pause'
 
-ID_SAVE= wx.NewId()
+ID_SAVE = wx.NewId()
 ID_HEAD = wx.NewId()
 ID_PLAY = wx.NewId()
 ID_PLAYPAUSE = wx.NewId()
-ID_PLAYSEL = wx.NewId()
+#ID_PLAYSEL = wx.NewId()
 ID_PLAYBORDER = wx.NewId()
 ID_PAUSE = wx.NewId()
 ID_TAIL = wx.NewId()
@@ -47,22 +62,33 @@ ID_REDO = wx.NewId()
 ONLY_SELECTED_FILE = 0
 ALL_FILES = 1
 
-surnames = [u'佐藤', u'鈴木', u'高橋', u'田中', u'伊藤', u'山本', u'渡辺', u'中村', u'小林', u'加藤',
-        u'吉田', u'山田', u'佐々木', u'山口', u'松本', u'井上', u'木村', u'斎藤', u'林', u'清水',
-        u'山崎', u'阿部', u'森', u'池田', u'橋本', u'山下', u'石川', u'中島', u'前田', u'藤田',
-        u'小川', u'後藤', u'岡田', u'長谷川', u'村上', u'石井', u'近藤', u'坂本', u'遠藤', u'藤井',
-        u'青木', u'西村', u'福田', u'斉藤', u'太田', u'藤原', u'三浦', u'岡本', u'松田', u'中川',
-        u'中野', u'小野', u'原田', u'田村', u'竹内', u'金子', u'和田', u'中山', u'石田', u'上田',
-        u'森田', u'柴田', u'酒井', u'原', u'横山', u'宮崎', u'工藤', u'宮本', u'内田', u'高木',
-        u'谷口', u'安藤', u'大野', u'丸山', u'今井', u'高田', u'藤本', u'河野', u'小島', u'村田',
-        u'武田', u'上野', u'杉山', u'増田', u'平野', u'菅原', u'小山', u'久保', u'大塚', u'千葉',
-        u'松井', u'岩崎', u'木下', u'松尾', u'野口', u'野村', u'佐野', u'菊地', u'渡部', u'大西',
-        u'ズルムケ', u'おっさん', u'おばはん', u'おやじ', u'おふくろ', u'海老蔵']
+surnames = [u'佐藤', u'鈴木', u'高橋', u'田中', u'伊藤', u'山本', u'渡辺',
+            u'中村', u'小林', u'加藤', u'吉田', u'山田', u'佐々木', u'山口',
+            u'松本', u'井上', u'木村', u'斎藤', u'林', u'清水', u'山崎',
+            u'阿部', u'森', u'池田', u'橋本', u'山下', u'石川', u'中島',
+            u'前田', u'藤田', u'小川', u'後藤', u'岡田', u'長谷川', u'村上',
+            u'石井', u'近藤', u'坂本', u'遠藤', u'藤井', u'青木', u'西村',
+            u'福田', u'斉藤', u'太田', u'藤原', u'三浦', u'岡本', u'松田',
+            u'中川', u'中野', u'小野', u'原田', u'田村', u'竹内', u'金子',
+            u'和田', u'中山', u'石田', u'上田', u'森田', u'柴田', u'酒井',
+            u'原', u'横山', u'宮崎', u'工藤', u'宮本', u'内田', u'高木',
+            u'谷口', u'安藤', u'大野', u'丸山', u'今井', u'高田', u'藤本',
+            u'河野', u'小島', u'村田', u'武田', u'上野', u'杉山', u'増田',
+            u'平野', u'菅原', u'小山', u'久保', u'大塚', u'千葉', u'松井',
+            u'岩崎', u'木下', u'松尾', u'野口', u'野村', u'佐野', u'菊地',
+            u'渡部', u'大西', u'ズルムケ', u'おっさん', u'おばはん',
+            u'おやじ', u'おふくろ', u'海老蔵']
+
+try:
+    dirName = os.path.dirname(os.path.abspath(__file__))
+except:
+    dirName = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+persist_file = os.path.join(dirName, 'persist.txt')
 
 
 def main():
-    app = wx.App(redirect=True, filename="log.txt")
-    #app = wx.App()
+    app = wx.App(redirect=True, filename='log.txt')
     frame = MainFrame(None, -1, 'InsPause')
     frame.Show(True)
     app.MainLoop()
@@ -83,10 +109,15 @@ class DirDrop(wx.FileDropTarget):
 
 class MainFrame(wx.Frame):
     def __init__(self, parent, id, title):
-        wx.Frame.__init__(self, parent, id, title)
+        wx.Frame.__init__(self, parent, id, title,
+                          size=(600, 500), name='inspause')
+
+        self.pm = persist.PersistenceManager.Get()
+        self.pm.SetPersistenceFile(persist_file)
 
         try:
-            exeName = win32api.GetModuleFileName(win32api.GetModuleHandle(None))
+            handle = win32api.GetModuleHandle(None)
+            exeName = win32api.GetModuleFileName(handle)
             icon = wx.Icon(exeName, wx.BITMAP_TYPE_ICO)
             self.SetIcon(icon)
         except:
@@ -103,8 +134,20 @@ class MainFrame(wx.Frame):
         if self.dir_name_conf and os.path.exists(self.dir_name_conf):
             self.set_dir(self.dir_name_conf)
 
+        wx.CallAfter(self.register_controls)
+
         self.Centre()
         self.Show(True)
+
+    def register_controls(self):
+        self.Freeze()
+        self.register()
+        self.Thaw()
+
+    def register(self, children=None):
+        self.pm.RegisterAndRestore(self)
+        self.pm.RegisterAndRestore(self.list)
+        self.pm.RegisterAndRestore(self.splitter)
 
     def read_conf(self):
         try:
@@ -125,6 +168,7 @@ class MainFrame(wx.Frame):
             self.add = max(0.0, min(add, 9.99))
 
             self.dir_name_conf = conf.get('dir', 'wav')
+            self.list_index = int(conf.get('dir', 'index'))
         except (NoSectionError, IOError, NoOptionError):
             self.sil_lv = DEFAULT_SIL_LV
             self.sil_dur = DEFAULT_SIL_DUR
@@ -134,6 +178,7 @@ class MainFrame(wx.Frame):
             self.add = DEFAULT_ADD
 
             self.dir_name_conf = ''
+            self.list_index = 0
 
     def write_conf(self):
         conf = SafeConfigParser()
@@ -152,6 +197,8 @@ class MainFrame(wx.Frame):
             self.dir_name = ''
         conf.set('dir', 'wav', self.dir_name.encode('utf8'))
 
+        conf.set('dir', 'index', str(self.list_index))
+
         f = open(CONFIG_FILE, 'w')
         conf.write(f)
 
@@ -161,7 +208,10 @@ class MainFrame(wx.Frame):
         dd = DirDrop(self)
         self.SetDropTarget(dd)
 
-        splitter = wx.SplitterWindow(self, -1, style=wx.SP_3D)
+        splitter = wx.SplitterWindow(self, -1, style=wx.SP_3D, name='view_splitter')
+        splitter.Bind(wx.EVT_SPLITTER_DCLICK, self.OnDoubleClick)
+        splitter.SetMinimumPaneSize(50)
+        self.splitter = splitter
 
         # WaveView
         self.view = WaveView(splitter, -1, listener=self)
@@ -176,13 +226,15 @@ class MainFrame(wx.Frame):
 
         sb_fs = wx.StaticBox(fsp, label=u'ポーズ情報作成')
         vbox_fs = wx.StaticBoxSizer(sb_fs, wx.VERTICAL)
-        
+
         st_sil_lv = wx.StaticText(fsp, label=u'無音レベル', style=wx.ALIGN_CENTRE)
         vbox_fs.Add(st_sil_lv, flag=wx.ALL, border=5)
 
-        self.sld_sil_lv = wx.Slider(fsp, size=(120, -1), value=self.sil_lv, minValue=0, maxValue=100, style=wx.SL_HORIZONTAL)
+        self.sld_sil_lv = wx.Slider(fsp, size=(120, -1), value=self.sil_lv,
+                                    minValue=0, maxValue=100,
+                                    style=wx.SL_HORIZONTAL)
         self.sld_sil_lv.Bind(wx.EVT_SCROLL, self.OnSilLvScroll)
-        vbox_fs.Add(self.sld_sil_lv, flag=wx.LEFT|wx.RIGHT, border=5)
+        vbox_fs.Add(self.sld_sil_lv, flag=wx.LEFT | wx.RIGHT, border=5)
 
         st = wx.StaticText(fsp, label=u'無音の最低長さ', style=wx.ALIGN_CENTRE)
         vbox_fs.Add(st, flag=wx.ALL, border=5)
@@ -190,9 +242,9 @@ class MainFrame(wx.Frame):
         pnl_fs1 = wx.Panel(fsp)
         hb = wx.BoxSizer(wx.HORIZONTAL)
 
-        nc_sil_dur = masked.numctrl.NumCtrl(pnl_fs1) 
-        nc_sil_dur.SetAllowNegative(False) 
-        nc_sil_dur.SetIntegerWidth(3)
+        nc_sil_dur = masked.numctrl.NumCtrl(pnl_fs1)
+        nc_sil_dur.SetAllowNegative(False)
+        nc_sil_dur.SetIntegerWidth(1)
         nc_sil_dur.SetFractionWidth(2)
         nc_sil_dur.SetValue(self.sil_dur)
         self.nc_sil_dur = nc_sil_dur
@@ -204,16 +256,15 @@ class MainFrame(wx.Frame):
         vbox_fs.Add(pnl_fs1)
         pnl_fs1.SetSizer(hb)
 
-
         st_lbl_dur = wx.StaticText(fsp, label=u'余裕感', style=wx.ALIGN_CENTRE)
         vbox_fs.Add(st_lbl_dur, flag=wx.ALL, border=5)
 
         pnl_fs2 = wx.Panel(fsp)
         hb = wx.BoxSizer(wx.HORIZONTAL)
 
-        nc_lbl_dur = masked.numctrl.NumCtrl(pnl_fs2) 
-        nc_lbl_dur.SetAllowNegative(False) 
-        nc_lbl_dur.SetIntegerWidth(3)
+        nc_lbl_dur = masked.numctrl.NumCtrl(pnl_fs2)
+        nc_lbl_dur.SetAllowNegative(False)
+        nc_lbl_dur.SetIntegerWidth(1)
         nc_lbl_dur.SetFractionWidth(2)
         nc_lbl_dur.SetValue(self.label_dur)
         self.nc_lbl_dur = nc_lbl_dur
@@ -225,11 +276,10 @@ class MainFrame(wx.Frame):
         vbox_fs.Add(pnl_fs2)
         pnl_fs2.SetSizer(hb)
 
-
         self.btn_find = wx.Button(fsp, label=u'ポーズ情報作成')
         vbox_fs.Add(self.btn_find, flag=wx.ALL, border=5)
         self.btn_find.Bind(wx.EVT_BUTTON, self.OnFindSound)
-        
+
         fsp.SetSizer(vbox_fs)
 
         # Insert Pause Panel
@@ -239,7 +289,6 @@ class MainFrame(wx.Frame):
 
         sb_ip = wx.StaticBox(ipp, label=u'ポーズ音声作成')
         vbox_ip = wx.StaticBoxSizer(sb_ip, wx.VERTICAL)
-        
 
         sb = wx.StaticBox(ipp, label=u'ポーズの長さ')
         sbvbox = wx.StaticBoxSizer(sb, wx.VERTICAL)
@@ -251,9 +300,9 @@ class MainFrame(wx.Frame):
         st = wx.StaticText(pnl_ip1, label=u'選択範囲 ×', style=wx.ALIGN_CENTRE)
         hb.Add(st, flag=wx.ALL, border=5)
 
-        nc_factor = masked.numctrl.NumCtrl(pnl_ip1) 
-        nc_factor.SetAllowNegative(False) 
-        nc_factor.SetIntegerWidth(3)
+        nc_factor = masked.numctrl.NumCtrl(pnl_ip1)
+        nc_factor.SetAllowNegative(False)
+        nc_factor.SetIntegerWidth(1)
         nc_factor.SetFractionWidth(2)
         nc_factor.SetValue(self.factor)
         self.nc_factor = nc_factor
@@ -262,16 +311,15 @@ class MainFrame(wx.Frame):
         sbvbox.Add(pnl_ip1)
         pnl_ip1.SetSizer(hb)
 
-
         pnl_ip2 = wx.Panel(ipp)
         hb = wx.BoxSizer(wx.HORIZONTAL)
 
         st = wx.StaticText(pnl_ip2, label=u'＋', style=wx.ALIGN_CENTRE)
         hb.Add(st, flag=wx.ALL, border=5)
 
-        nc_add = masked.numctrl.NumCtrl(pnl_ip2) 
-        nc_add.SetAllowNegative(False) 
-        nc_add.SetIntegerWidth(3)
+        nc_add = masked.numctrl.NumCtrl(pnl_ip2)
+        nc_add.SetAllowNegative(False)
+        nc_add.SetIntegerWidth(1)
         nc_add.SetFractionWidth(2)
         nc_add.SetValue(self.add)
         self.nc_add = nc_add
@@ -283,11 +331,10 @@ class MainFrame(wx.Frame):
         sbvbox.Add(pnl_ip2)
         pnl_ip2.SetSizer(hb)
 
-
         choices = (u'右画面で選択したやつ', u'全ファイル')
-        self.rb = wx.RadioBox(ipp, label=u'対象', choices=choices, style=wx.RA_VERTICAL)
+        self.rb = wx.RadioBox(ipp, label=u'対象', choices=choices,
+                              style=wx.RA_VERTICAL)
         vbox_ip.Add(self.rb, flag=wx.ALL, border=5)
-
 
         self.btn_inspa = wx.Button(ipp, label=u'ポーズ音声作成')
         vbox_ip.Add(self.btn_inspa, flag=wx.ALL, border=5)
@@ -296,10 +343,11 @@ class MainFrame(wx.Frame):
         ipp.SetSizer(vbox_ip)
 
         # ListCtrl
-        self.list = wx.ListCtrl(panel, -1, style=wx.LC_REPORT)
+        self.list = wx.ListCtrl(panel, -1, style=wx.LC_REPORT, name='file_list_ctrl')
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnWavClick, self.list)
         self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, self.list)
-        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected, self.list)
+        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected,
+                  self.list)
         hbox.Add(self.list, 1, wx.EXPAND)
 
         panel.SetSizer(hbox)
@@ -311,42 +359,58 @@ class MainFrame(wx.Frame):
     def init_toolbar(self):
 
         self.tb = self.CreateToolBar()
-        tb_head = self.tb.AddLabelTool(ID_HEAD, 'Head', wx.Bitmap('icon/head.png'))
+        tb_head = self.tb.AddLabelTool(ID_HEAD, 'Head',
+                                       wx.Bitmap('icon/head.png'))
         tb_head.ShortHelp = u'先頭へ(Home)'
-        tb_play = self.tb.AddLabelTool(ID_PLAY, 'Play', wx.Bitmap('icon/play.png'))
+        tb_play = self.tb.AddLabelTool(ID_PLAY, 'Play',
+                                       wx.Bitmap('icon/play.png'))
         tb_play.ShortHelp = u'再生(Space)'
-        tb_playpause = self.tb.AddLabelTool(ID_PLAYPAUSE, 'Pause Mode Play', wx.Bitmap('icon/playpause.png'))
+        tb_playpause = self.tb.AddLabelTool(ID_PLAYPAUSE, 'Pause Mode Play',
+                                            wx.Bitmap('icon/playpause.png'))
         tb_playpause.ShortHelp = u'ポーズモード再生'
-        tb_playsel = self.tb.AddLabelTool(ID_PLAYSEL, 'Play Selected Range', wx.Bitmap('icon/playsel.png'))
-        tb_playsel.ShortHelp = u'選択範囲を再生(s)'
-        tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border', wx.Bitmap('icon/playborder.png'))
+        #tb_playsel = self.tb.AddLabelTool(ID_PLAYSEL, 'Play Selected Range',
+        #                                  wx.Bitmap('icon/playsel.png'))
+        #tb_playsel.ShortHelp = u'選択範囲を再生(s)'
+        tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border',
+                                             wx.Bitmap('icon/playborder.png'))
         tb_playborder.ShortHelp = u'境界を再生(b)'
-        tb_pause = self.tb.AddLabelTool(ID_PAUSE, 'Pause', wx.Bitmap('icon/pause.png'))
+        tb_pause = self.tb.AddLabelTool(ID_PAUSE, 'Pause',
+                                        wx.Bitmap('icon/pause.png'))
         tb_pause.ShortHelp = u'一時停止(Space)'
-        tb_tail = self.tb.AddLabelTool(ID_TAIL, 'Tail', wx.Bitmap('icon/tail.png'))
+        tb_tail = self.tb.AddLabelTool(ID_TAIL, 'Tail',
+                                       wx.Bitmap('icon/tail.png'))
         tb_tail.ShortHelp = u'末尾へ(End)'
-        tb_zoomin = self.tb.AddLabelTool(ID_ZOOMIN, 'Zooom In', wx.Bitmap('icon/zoomin.png'))
+        tb_zoomin = self.tb.AddLabelTool(ID_ZOOMIN, 'Zooom In',
+                                         wx.Bitmap('icon/zoomin.png'))
         tb_zoomin.ShortHelp = u'拡大(+)'
-        tb_zoomout = self.tb.AddLabelTool(ID_ZOOMOUT, 'Zooom Out', wx.Bitmap('icon/zoomout.png'))
+        tb_zoomout = self.tb.AddLabelTool(ID_ZOOMOUT, 'Zooom Out',
+                                          wx.Bitmap('icon/zoomout.png'))
         tb_zoomout.ShortHelp = u'縮小(-)'
 
         self.tb.AddSeparator()
 
         tb_cut = self.tb.AddLabelTool(ID_CUT, 'Cut', wx.Bitmap('icon/cut.png'))
         tb_cut.ShortHelp = u'分割(c)'
-        tb_mergel = self.tb.AddLabelTool(ID_MERGE_L, 'Merge Left', wx.Bitmap('icon/mergeleft.png'))
+        tb_mergel = self.tb.AddLabelTool(ID_MERGE_L, 'Merge Left',
+                                         wx.Bitmap('icon/mergeleft.png'))
         tb_mergel.ShortHelp = u'左と結合'
-        tb_merger = self.tb.AddLabelTool(ID_MERGE_R, 'Merge Right', wx.Bitmap('icon/mergeright.png'))
+        tb_merger = self.tb.AddLabelTool(ID_MERGE_R, 'Merge Right',
+                                         wx.Bitmap('icon/mergeright.png'))
         tb_merger.ShortHelp = u'右と結合'
-        tb_undo = self.tb.AddLabelTool(ID_UNDO, 'Undo', wx.Bitmap('icon/undo.png'))
+        tb_undo = self.tb.AddLabelTool(ID_UNDO, 'Undo',
+                                       wx.Bitmap('icon/undo.png'))
         tb_undo.ShortHelp = u'元に戻す(Ctrl+z)'
-        tb_redo = self.tb.AddLabelTool(ID_REDO, 'Redo', wx.Bitmap('icon/redo.png'))
+        tb_redo = self.tb.AddLabelTool(ID_REDO, 'Redo',
+                                       wx.Bitmap('icon/redo.png'))
         tb_redo.ShortHelp = u'やり直し'
-        tb_save = self.tb.AddLabelTool(ID_SAVE, 'Save', wx.Bitmap('icon/save.png'))
+        tb_save = self.tb.AddLabelTool(ID_SAVE, 'Save',
+                                       wx.Bitmap('icon/save.png'))
         tb_save.ShortHelp = u'ポーズ情報の保存(Ctrl+s)'
-        tb_insert = self.tb.AddLabelTool(ID_INSERT, 'Insert Label', wx.Bitmap('icon/insert.png'))
+        tb_insert = self.tb.AddLabelTool(ID_INSERT, 'Insert Label',
+                                         wx.Bitmap('icon/insert.png'))
         tb_insert.ShortHelp = u'ポーズの挿入'
-        tb_remove = self.tb.AddLabelTool(ID_REMOVE, 'Remove Label', wx.Bitmap('icon/remove.png'))
+        tb_remove = self.tb.AddLabelTool(ID_REMOVE, 'Remove Label',
+                                         wx.Bitmap('icon/remove.png'))
         tb_remove.ShortHelp = u'ポーズの削除(Delete)'
         self.tb.Realize()
 
@@ -354,7 +418,7 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.OnHead, tb_head)
         self.Bind(wx.EVT_TOOL, self.OnPlay, tb_play)
         self.Bind(wx.EVT_TOOL, self.OnPlayPause, tb_playpause)
-        self.Bind(wx.EVT_TOOL, self.OnPlaySel, tb_playsel)
+        #self.Bind(wx.EVT_TOOL, self.OnPlaySel, tb_playsel)
         self.Bind(wx.EVT_TOOL, self.OnPlayBorder, tb_playborder)
         self.Bind(wx.EVT_TOOL, self.OnPause, tb_pause)
         self.Bind(wx.EVT_TOOL, self.OnTail, tb_tail)
@@ -374,7 +438,7 @@ class MainFrame(wx.Frame):
         self.tb.EnableTool(ID_HEAD, self.view.can_head())
         self.tb.EnableTool(ID_PLAY, self.view.can_play())
         self.tb.EnableTool(ID_PLAYPAUSE, self.view.can_pause_mode_play())
-        self.tb.EnableTool(ID_PLAYSEL, self.view.can_playsel())
+        #self.tb.EnableTool(ID_PLAYSEL, self.view.can_playsel())
         self.tb.EnableTool(ID_PLAYBORDER, self.view.can_play_border())
         self.tb.EnableTool(ID_PAUSE, self.view.can_pause())
         self.tb.EnableTool(ID_TAIL, self.view.can_tail())
@@ -403,8 +467,9 @@ class MainFrame(wx.Frame):
 
     def confirm_save(self):
         if self.view.can_save():
-            your_name = surnames[random.randint(0, len(surnames)-1)]
-            dlg = wx.MessageDialog(self, u'%sさん、変更を保存しますか？' % your_name, u'確認',  wx.YES_NO)
+            your_name = surnames[random.randint(0, len(surnames) - 1)]
+            dlg = wx.MessageDialog(self, u'%sさん、変更を保存しますか？' %
+                                   your_name, u'確認',  wx.YES_NO)
             response = dlg.ShowModal()
             dlg.Destroy()
 
@@ -432,22 +497,25 @@ class MainFrame(wx.Frame):
                 wav_files.append(name)
 
         if len(wav_files) == 0:
+            self.list_index = 0
             return
 
         labels_dir = os.path.join(dir_name, LABELS_DIR)
         if not os.path.exists(labels_dir):
-            os.mkdir(labels_dir)            
+            os.mkdir(labels_dir)
 
         wav_files.sort()
 
         for i, name in enumerate(wav_files):
             index = self.list.InsertStringItem(i, name)
-            self.list.SetStringItem(index, 1, '%03d.txt' % (i+1))
+            self.list.SetStringItem(index, 1, '%03d.txt' % (i + 1))
 
-        self.list.Select(0)
-        wav_name = self.list.GetItem(0, 0).GetText()
+        self.list_index = max(0, min(self.list_index,
+                                     self.list.ItemCount - 1))
+        self.list.Select(self.list_index)
+        wav_name = self.list.GetItem(self.list_index, 0).GetText()
         wav_file = os.path.join(self.dir_name,  wav_name)
-        labels_name = self.list.GetItem(0, 1).GetText()
+        labels_name = self.list.GetItem(self.list_index, 1).GetText()
         labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_name)
         self.set_sound(wav_file, labels_file)
 
@@ -461,8 +529,12 @@ class MainFrame(wx.Frame):
         wav_file = os.path.join(self.dir_name, evt.GetText())
         labels_file = self.list.GetItem(evt.m_itemIndex, 1).GetText()
         labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_file)
+        self.list_index = evt.m_itemIndex
 
         self.set_sound(wav_file, labels_file)
+
+    def OnDoubleClick(self, evt):
+        evt.Veto()
 
     def set_sound(self, wav_file, labels_file):
         if not self.view.set_sound(wav_file):
@@ -503,7 +575,8 @@ class MainFrame(wx.Frame):
         wav_names = []
         labels_names = []
 
-        if (self.rb.Selection == ONLY_SELECTED_FILE) and (self.list.SelectedItemCount != 0):
+        if (self.rb.Selection == ONLY_SELECTED_FILE) and \
+                (self.list.SelectedItemCount != 0):
             item = self.list.GetFirstSelected()
             while item != -1:
                 wav_names.append(self.list.GetItemText(item))
@@ -514,27 +587,33 @@ class MainFrame(wx.Frame):
                 wav_names.append(self.list.GetItem(i, 0).GetText())
                 labels_names.append(self.list.GetItem(i, 1).GetText())
 
-        dlg = wx.ProgressDialog(u'ポーズファイル作成', u'ポーズファイル作成中\n残りファイル数%d' % len(wav_names),
-                maximum=len(wav_names), parent=self, style = wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
+        dlg = wx.ProgressDialog(u'ポーズファイル作成',
+                                u'ポーズファイル作成中\n残りファイル数%d' %
+                                len(wav_names), maximum=len(wav_names),
+                                parent=self,
+                                style=wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
 
-        for i, (wav_name, labels_name) in enumerate(zip(wav_names, labels_names)):
-            dlg.Update(i, u'ポーズファイル作成中\n残りファイル数%d' % (len(wav_names) - i))
+        for i, (wav, labels) in enumerate(zip(wav_names, labels_names)):
+            dlg.Update(i, u'ポーズファイル作成中\n残りファイル数%d' %
+                       (len(wav_names) - i))
 
-            wav_file = os.path.join(self.dir_name, wav_name)
-            labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_name)
-            pause_file = os.path.join(self.dir_name, PAUSE_DIR, wav_name)
+            wav_file = os.path.join(self.dir_name, wav)
+            labels_file = os.path.join(self.dir_name, LABELS_DIR, labels)
+            pause_file = os.path.join(self.dir_name, PAUSE_DIR, wav)
 
             if not os.path.exists(labels_file):
                 labels = find_sound(wav_file)
                 labels.write(labels_file)
 
-            insert_pause(wav_file, pause_file, labels_file, self.nc_factor.GetValue(), self.nc_add.GetValue())
+            insert_pause(wav_file, pause_file, labels_file,
+                         self.nc_factor.GetValue(), self.nc_add.GetValue())
 
         dlg.Destroy()
 
-        your_name = surnames[random.randint(0, len(surnames)-1)]
+        your_name = surnames[random.randint(0, len(surnames) - 1)]
         pause_dir = os.path.join(self.dir_name, PAUSE_DIR)
-        wx.MessageBox(u'おい、%s！ここにできちょんけん\n%s' % (your_name, pause_dir), u'できたで', wx.OK)
+        wx.MessageBox(u'おい、%s！ここにできちょんけん\n%s' %
+                      (your_name, pause_dir), u'できたで', wx.OK)
 
     def OnInsert(self, evt):
         self.view.insert_label()
@@ -566,10 +645,10 @@ class MainFrame(wx.Frame):
         self.set_enable()
         self.tb.EnableTool(ID_HEAD, True)
 
-    def OnPlaySel(self, evt):
-        self.view.playsel()
-        self.set_enable()
-        self.tb.EnableTool(ID_HEAD, True)
+    #def OnPlaySel(self, evt):
+    #    self.view.playsel()
+    #    self.set_enable()
+    #    self.tb.EnableTool(ID_HEAD, True)
 
     def OnPlayBorder(self, evt):
         self.view.play_border()
@@ -612,7 +691,6 @@ class MainFrame(wx.Frame):
         self.view.redo()
         self.set_enable()
 
-
     def OnChangeCur(self, evt):
         self.set_enable()
 
@@ -624,8 +702,10 @@ class MainFrame(wx.Frame):
 
         self.view.cancel()
         self.write_conf()
+
+        self.pm.SaveAndUnregister()
+
         self.Destroy()
 
 if __name__ == '__main__':
     main()
-

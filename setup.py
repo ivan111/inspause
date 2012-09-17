@@ -3,7 +3,8 @@ from glob import glob
 import py2exe
 
 py2exe_options = {
-  "packages": ['wxPython', 'pyaudio', 'win32api'],
+  "packages": ['wxPython', 'pyaudio', 'win32event', 'win32api', 'winerror'],
+  "excludes": ['tcl'],
   "compressed": 1,
   "optimize": 2,
   "bundle_files": 1}

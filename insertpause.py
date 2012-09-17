@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import struct
 import wave
 
@@ -6,7 +8,9 @@ from labels import Labels, LBL_CUT
 DEFAULT_FACTOR = 1.2
 DEFAULT_ADD = 0.5
 
-def insert_pause(in_fname, out_fname, pause_fname, factor=DEFAULT_FACTOR, add=DEFAULT_ADD):
+
+def insert_pause(in_fname, out_fname, pause_fname,
+                 factor=DEFAULT_FACTOR, add=DEFAULT_ADD):
     in_wf = wave.open(in_fname, 'r')
     out_wf = wave.open(out_fname, 'w')
     out_wf.setnchannels(in_wf.getnchannels())
@@ -43,7 +47,8 @@ def insert_pause(in_fname, out_fname, pause_fname, factor=DEFAULT_FACTOR, add=DE
 
             # insert pause
             p_nframes = ed_f - st_f
-            p_nframes = int((p_nframes * factor) + (add * in_wf.getframerate()))
+            p_nframes = p_nframes * factor
+            p_nframes = int(p_nframes + (add * in_wf.getframerate()))
             p_nframes = p_nframes * in_wf.getnchannels() * in_wf.getsampwidth()
 
             out_wf.writeframes(struct.pack('%ds' % p_nframes, ''))
@@ -55,4 +60,3 @@ def insert_pause(in_fname, out_fname, pause_fname, factor=DEFAULT_FACTOR, add=DE
 
 if __name__ == '__main__':
     insert_pause('in.wav', 'out.wav', 'labels.txt')
-

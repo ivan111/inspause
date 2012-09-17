@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import pyaudio
 import threading
 import time
@@ -20,10 +22,12 @@ class UpdateEvent(wx.PyEvent):
         self.SetEventType(EVT_UPDATE_ID)
         self.cur_f = cur_f
 
+
 class EOFEvent(wx.PyEvent):
     def __init__(self):
         wx.PyEvent.__init__(self)
         self.SetEventType(EVT_EOF_ID)
+
 
 class WavePlayer(threading.Thread):
     def __init__(self, listener, buffer, nchannels, sampwidth, framerate):
@@ -43,10 +47,10 @@ class WavePlayer(threading.Thread):
     def run(self):
         p = pyaudio.PyAudio()
 
-        stream = p.open(format = p.get_format_from_width(self.sampwidth),
-                        channels = self.nchannels,
-                        rate = self.framerate,
-                        output = True)
+        stream = p.open(format=p.get_format_from_width(self.sampwidth),
+                        channels=self.nchannels,
+                        rate=self.framerate,
+                        output=True)
 
         self.pause_f = 0
 
@@ -66,13 +70,15 @@ class WavePlayer(threading.Thread):
                     if self.pause_mode:
                         # Check Pause Exists
                         for pause in self.pause_list:
-                            if (self.cur_f <= pause[0]) and (pause[0] < self.cur_f + CHUNK):
+                            if (self.cur_f <= pause[0]) and \
+                                    (pause[0] < self.cur_f + CHUNK):
                                 self.pause_f = pause[1]
                                 break
 
                         # Check Cut Exists
                         for cut in self.cut_list:
-                            if (self.cur_f <= cut[0]) and (cut[0] < self.cur_f + CHUNK):
+                            if (self.cur_f <= cut[0]) and \
+                                    (cut[0] < self.cur_f + CHUNK):
                                 self.cur_f = min(cut[1], self.max_f)
                                 break
 
@@ -129,7 +135,7 @@ class WavePlayer(threading.Thread):
         for label in labels:
             st_f = int(label.start * self.framerate)
             ed_f = int(label.end * self.framerate)
- 
+
             if label.label == LBL_CUT:
                 cut_list.append([st_f, ed_f])
             else:
@@ -231,6 +237,3 @@ class WavePlayer(threading.Thread):
         self._max_f = max(0, min(max_f, self.nframes))
 
     max_f = property(get_max_f, set_max_f)
-
-
-
