@@ -30,21 +30,23 @@ import wx.xrc as xrc
 import persist
 
 from findsound import find_sound
-from findsound import DEFAULT_SIL_LV, DEFAULT_SIL_DUR, DEFAULT_LABEL_DUR
+from findsound import DEFAULT_SIL_LV, DEFAULT_SIL_DUR
 from insertpause import insert_pause, DEFAULT_FACTOR, DEFAULT_ADD
 from labels import Labels
+from revpause import rev_pause
 from waveview import WaveView, EVT_CHANGE_CUR_ID, EVT_EOF_ID
 
 
 CONFIG_FILE = 'settings.ini'
 LABELS_DIR = 'labels'
 PAUSE_DIR = 'pause'
+REVERSE_DIR = 'reverse'
+ERROR_FILE = 'error.txt'
 
 ID_SAVE = wx.NewId()
 ID_HEAD = wx.NewId()
 ID_PLAY = wx.NewId()
 ID_PLAYPAUSE = wx.NewId()
-#ID_PLAYSEL = wx.NewId()
 ID_PLAYBORDER = wx.NewId()
 ID_PAUSE = wx.NewId()
 ID_TAIL = wx.NewId()
@@ -59,8 +61,12 @@ ID_MERGE_R = wx.NewId()
 ID_UNDO = wx.NewId()
 ID_REDO = wx.NewId()
 
-ONLY_SELECTED_FILE = 0
-ALL_FILES = 1
+SIL_DUR_MIN = 0.01
+SIL_DUR_MAX = 9.99
+FACTOR_MIN = 0.0
+FACTOR_MAX = 9.99
+ADD_MIN = 0.0
+ADD_MAX = 9.99
 
 surnames = [u'佐藤', u'鈴木', u'高橋', u'田中', u'伊藤', u'山本', u'渡辺',
             u'中村', u'小林', u'加藤', u'吉田', u'山田', u'佐々木', u'山口',
@@ -102,8 +108,10 @@ class DirDrop(wx.FileDropTarget):
     def OnDropFiles(self, x, y, names):
         if len(names) == 1:
             if os.path.isdir(names[0]):
+                self.window.list_index = 0
                 self.window.set_dir(names[0])
             else:
+                self.window.list_index = 0
                 self.window.set_dir(os.path.dirname(names[0]))
 
 
@@ -158,21 +166,18 @@ class MainFrame(wx.Frame):
             sil_lv = int(conf.get('find', 'sil_lv'))
             self.sil_lv = max(0, min(sil_lv, 100))
             sil_dur = float(conf.get('find', 'sil_dur'))
-            self.sil_dur = max(0.01, min(sil_dur, 9.99))
-            label_dur = float(conf.get('find', 'label_dur'))
-            self.label_dur = max(0.0, min(label_dur, 9.99))
+            self.sil_dur = max(SIL_DUR_MIN, min(sil_dur, SIL_DUR_MAX))
 
             factor = float(conf.get('pause', 'factor'))
-            self.factor = max(0.01, min(factor, 9.99))
+            self.factor = max(FACTOR_MIN, min(factor, FACTOR_MAX))
             add = float(conf.get('pause', 'add'))
-            self.add = max(0.0, min(add, 9.99))
+            self.add = max(ADD_MIN, min(add, ADD_MAX))
 
             self.dir_name_conf = conf.get('dir', 'wav')
             self.list_index = int(conf.get('dir', 'index'))
         except (NoSectionError, IOError, NoOptionError):
             self.sil_lv = DEFAULT_SIL_LV
             self.sil_dur = DEFAULT_SIL_DUR
-            self.label_dur = DEFAULT_LABEL_DUR
 
             self.factor = DEFAULT_FACTOR
             self.add = DEFAULT_ADD
@@ -186,7 +191,6 @@ class MainFrame(wx.Frame):
         conf.add_section('find')
         conf.set('find', 'sil_lv', str(self.sld_sil_lv.GetValue()))
         conf.set('find', 'sil_dur', str(self.nc_sil_dur.GetValue()))
-        conf.set('find', 'label_dur', str(self.nc_lbl_dur.GetValue()))
 
         conf.add_section('pause')
         conf.set('pause', 'factor', str(self.nc_factor.GetValue()))
@@ -208,7 +212,8 @@ class MainFrame(wx.Frame):
         dd = DirDrop(self)
         self.SetDropTarget(dd)
 
-        splitter = wx.SplitterWindow(self, -1, style=wx.SP_3D, name='view_splitter')
+        splitter = wx.SplitterWindow(self, -1, style=wx.SP_3D,
+                                     name='view_splitter')
         splitter.Bind(wx.EVT_SPLITTER_DCLICK, self.OnDoubleClick)
         splitter.SetMinimumPaneSize(50)
         self.splitter = splitter
@@ -247,6 +252,9 @@ class MainFrame(wx.Frame):
         nc_sil_dur.SetIntegerWidth(1)
         nc_sil_dur.SetFractionWidth(2)
         nc_sil_dur.SetValue(self.sil_dur)
+        nc_sil_dur.SetMin(SIL_DUR_MIN)
+        nc_sil_dur.SetMax(SIL_DUR_MAX)
+        nc_sil_dur.SetLimited(True)
         self.nc_sil_dur = nc_sil_dur
         hb.Add(self.nc_sil_dur, flag=wx.LEFT, border=5)
 
@@ -256,29 +264,13 @@ class MainFrame(wx.Frame):
         vbox_fs.Add(pnl_fs1)
         pnl_fs1.SetSizer(hb)
 
-        st_lbl_dur = wx.StaticText(fsp, label=u'余裕感', style=wx.ALIGN_CENTRE)
-        vbox_fs.Add(st_lbl_dur, flag=wx.ALL, border=5)
-
-        pnl_fs2 = wx.Panel(fsp)
-        hb = wx.BoxSizer(wx.HORIZONTAL)
-
-        nc_lbl_dur = masked.numctrl.NumCtrl(pnl_fs2)
-        nc_lbl_dur.SetAllowNegative(False)
-        nc_lbl_dur.SetIntegerWidth(1)
-        nc_lbl_dur.SetFractionWidth(2)
-        nc_lbl_dur.SetValue(self.label_dur)
-        self.nc_lbl_dur = nc_lbl_dur
-        hb.Add(self.nc_lbl_dur, flag=wx.LEFT, border=5)
-
-        st = wx.StaticText(pnl_fs2, label=u'秒', style=wx.ALIGN_CENTRE)
-        hb.Add(st, flag=wx.ALL, border=5)
-
-        vbox_fs.Add(pnl_fs2)
-        pnl_fs2.SetSizer(hb)
-
         self.btn_find = wx.Button(fsp, label=u'ポーズ情報作成')
         vbox_fs.Add(self.btn_find, flag=wx.ALL, border=5)
         self.btn_find.Bind(wx.EVT_BUTTON, self.OnFindSound)
+
+        self.btn_reverse = wx.Button(fsp, label=u'ポーズwavから作成')
+        vbox_fs.Add(self.btn_reverse, flag=wx.ALL, border=5)
+        self.btn_reverse.Bind(wx.EVT_BUTTON, self.OnReverse)
 
         fsp.SetSizer(vbox_fs)
 
@@ -305,6 +297,9 @@ class MainFrame(wx.Frame):
         nc_factor.SetIntegerWidth(1)
         nc_factor.SetFractionWidth(2)
         nc_factor.SetValue(self.factor)
+        nc_factor.SetMin(FACTOR_MIN)
+        nc_factor.SetMax(FACTOR_MAX)
+        nc_factor.SetLimited(True)
         self.nc_factor = nc_factor
         hb.Add(nc_factor)
 
@@ -322,6 +317,9 @@ class MainFrame(wx.Frame):
         nc_add.SetIntegerWidth(1)
         nc_add.SetFractionWidth(2)
         nc_add.SetValue(self.add)
+        nc_add.SetMin(ADD_MIN)
+        nc_add.SetMax(ADD_MAX)
+        nc_add.SetLimited(True)
         self.nc_add = nc_add
         hb.Add(nc_add)
 
@@ -331,11 +329,6 @@ class MainFrame(wx.Frame):
         sbvbox.Add(pnl_ip2)
         pnl_ip2.SetSizer(hb)
 
-        choices = (u'右画面で選択したやつ', u'全ファイル')
-        self.rb = wx.RadioBox(ipp, label=u'対象', choices=choices,
-                              style=wx.RA_VERTICAL)
-        vbox_ip.Add(self.rb, flag=wx.ALL, border=5)
-
         self.btn_inspa = wx.Button(ipp, label=u'ポーズ音声作成')
         vbox_ip.Add(self.btn_inspa, flag=wx.ALL, border=5)
         self.btn_inspa.Bind(wx.EVT_BUTTON, self.OnInsertPause)
@@ -343,11 +336,9 @@ class MainFrame(wx.Frame):
         ipp.SetSizer(vbox_ip)
 
         # ListCtrl
-        self.list = wx.ListCtrl(panel, -1, style=wx.LC_REPORT, name='file_list_ctrl')
+        self.list = wx.ListCtrl(panel, -1, style=wx.LC_REPORT,
+                                name='file_list_ctrl')
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnWavClick, self.list)
-        self.Bind(wx.EVT_LIST_ITEM_SELECTED, self.OnItemSelected, self.list)
-        self.Bind(wx.EVT_LIST_ITEM_DESELECTED, self.OnItemDeselected,
-                  self.list)
         hbox.Add(self.list, 1, wx.EXPAND)
 
         panel.SetSizer(hbox)
@@ -357,7 +348,6 @@ class MainFrame(wx.Frame):
         self.set_enable()
 
     def init_toolbar(self):
-
         self.tb = self.CreateToolBar()
         tb_head = self.tb.AddLabelTool(ID_HEAD, 'Head',
                                        wx.Bitmap('icon/head.png'))
@@ -368,9 +358,6 @@ class MainFrame(wx.Frame):
         tb_playpause = self.tb.AddLabelTool(ID_PLAYPAUSE, 'Pause Mode Play',
                                             wx.Bitmap('icon/playpause.png'))
         tb_playpause.ShortHelp = u'ポーズモード再生'
-        #tb_playsel = self.tb.AddLabelTool(ID_PLAYSEL, 'Play Selected Range',
-        #                                  wx.Bitmap('icon/playsel.png'))
-        #tb_playsel.ShortHelp = u'選択範囲を再生(s)'
         tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border',
                                              wx.Bitmap('icon/playborder.png'))
         tb_playborder.ShortHelp = u'境界を再生(b)'
@@ -418,7 +405,6 @@ class MainFrame(wx.Frame):
         self.Bind(wx.EVT_TOOL, self.OnHead, tb_head)
         self.Bind(wx.EVT_TOOL, self.OnPlay, tb_play)
         self.Bind(wx.EVT_TOOL, self.OnPlayPause, tb_playpause)
-        #self.Bind(wx.EVT_TOOL, self.OnPlaySel, tb_playsel)
         self.Bind(wx.EVT_TOOL, self.OnPlayBorder, tb_playborder)
         self.Bind(wx.EVT_TOOL, self.OnPause, tb_pause)
         self.Bind(wx.EVT_TOOL, self.OnTail, tb_tail)
@@ -438,7 +424,6 @@ class MainFrame(wx.Frame):
         self.tb.EnableTool(ID_HEAD, self.view.can_head())
         self.tb.EnableTool(ID_PLAY, self.view.can_play())
         self.tb.EnableTool(ID_PLAYPAUSE, self.view.can_pause_mode_play())
-        #self.tb.EnableTool(ID_PLAYSEL, self.view.can_playsel())
         self.tb.EnableTool(ID_PLAYBORDER, self.view.can_play_border())
         self.tb.EnableTool(ID_PAUSE, self.view.can_pause())
         self.tb.EnableTool(ID_TAIL, self.view.can_tail())
@@ -456,11 +441,6 @@ class MainFrame(wx.Frame):
         if self.dir_name and (not self.view.playing):
             self.fsp.Enable()
             self.ipp.Enable()
-            if self.list.SelectedItemCount == 0:
-                self.rb.EnableItem(ONLY_SELECTED_FILE, False)
-                self.rb.SetSelection(ALL_FILES)
-            else:
-                self.rb.EnableItem(ONLY_SELECTED_FILE, True)
         else:
             self.fsp.Disable()
             self.ipp.Disable()
@@ -549,19 +529,110 @@ class MainFrame(wx.Frame):
 
         self.set_enable()
 
-    def OnItemSelected(self, evt):
-        self.rb.EnableItem(ONLY_SELECTED_FILE, True)
-
-    def OnItemDeselected(self, evt):
-        self.rb.EnableItem(ONLY_SELECTED_FILE, False)
-        self.rb.SetSelection(ALL_FILES)
-
     def OnFindSound(self, evt):
         sil_lv = self.sld_sil_lv.GetValue()
         sil_dur = self.nc_sil_dur.GetValue()
-        before_label_dur = after_label_dur = self.nc_lbl_dur.GetValue()
 
-        self.view.find(sil_lv, sil_dur, before_label_dur, after_label_dur)
+        self.view.find(sil_lv, sil_dur)
+
+    def OnReverse(self, evt):
+        not_found = False
+
+        rev_dir = os.path.join(self.dir_name, REVERSE_DIR)
+        rev_names = []
+
+        if not os.path.exists(rev_dir):
+            os.mkdir(rev_dir)
+            not_found = True
+        else:
+            for name in os.listdir(rev_dir):
+                if name.endswith('.wav'):
+                    rev_names.append(name)
+            rev_names.sort()
+
+            if len(rev_names) == 0:
+                not_found = True
+
+        if not_found:
+            wx.MessageBox(u'ここに手作業でつくったポーズ付きwavを入れて\n%s' %
+                          rev_dir, u'やほ', wx.OK)
+            return
+
+        wav_files = []
+
+        for i in range(self.list.ItemCount):
+            wav_name = self.list.GetItem(i, 0).GetText()
+            wav_file = os.path.join(self.dir_name, wav_name)
+            wav_files.append(wav_file)
+
+        if len(wav_files) != len(rev_names):
+            wx.MessageBox(u'wavの数(%d)とreverseの数(%d)が違います' %
+                          (len(wav_files), len(rev_names)), u'^^', wx.OK)
+            return
+
+        dlg = wx.MessageDialog(self, u'ポーズ情報が上書きされますが' +
+                               u'よろしいでしょうか？', u'確認',  wx.YES_NO)
+        response = dlg.ShowModal()
+        dlg.Destroy()
+
+        if response == wx.ID_NO:
+            return
+
+        dlg = wx.MessageDialog(self, u'すべてのファイルのポーズを探しますか？' +
+                               u'\n「いいえ」なら表示されているファイルのみ',
+                               u'何度も確認して申し訳ございません',  wx.YES_NO)
+        response = dlg.ShowModal()
+        dlg.Destroy()
+
+        rev_files = []
+
+        if response == wx.ID_NO:
+            rev_name = rev_names[self.list_index]
+            rev_file = os.path.join(self.dir_name, REVERSE_DIR, rev_name)
+            rev_files.append(rev_file)
+            wav_files = [wav_files[self.list_index]]
+        else:
+            for rev_name in rev_names:
+                rev_file = os.path.join(self.dir_name, REVERSE_DIR, rev_name)
+                rev_files.append(rev_file)
+
+        dlg = wx.ProgressDialog(u'ポーズ情報作成',
+                                u'ポーズ情報作成中\n残りファイル数%d' %
+                                len(wav_files), maximum=len(wav_files),
+                                parent=self,
+                                style=wx.PD_AUTO_HIDE | wx.PD_APP_MODAL)
+
+        error_files = []
+
+        for i, (wav_file, rev_file) in \
+                enumerate(zip(wav_files, rev_files)):
+            dlg.Update(i, u'ポーズ情報作成中\n残りファイル数%d' %
+                       (len(wav_files) - i))
+
+            result = rev_pause(wav_file, rev_file)
+            labels, err = result
+            labels_name = '%03d.txt' % (i + 1)
+            labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_name)
+            labels.write(labels_file)
+
+            if err:
+                error_files.append(os.path.basename(wav_file))
+
+        dlg.Destroy()
+
+        if len(error_files) != 0:
+            error_file = os.path.join(self.dir_name, ERROR_FILE)
+            f = open(error_file, 'w')
+            for ef in error_files:
+                f.write(ef + '\n')
+            f.close()
+            msg = u'%d個のファイルが検索に失敗しました。\n' + \
+                  u'ここに検索に失敗したファイルが書いてあります\n%s'
+            wx.MessageBox(msg % (len(error_files), error_file), u'失敗', wx.OK)
+
+        labels_file = self.list.GetItem(self.list_index, 1).GetText()
+        labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_file)
+        self.view.set_labels(labels_file)
 
     def OnInsertPause(self, evt):
         if not self.confirm_save():
@@ -572,16 +643,19 @@ class MainFrame(wx.Frame):
         if not os.path.exists(pause_dir):
             os.mkdir(pause_dir)
 
+        dlg = wx.MessageDialog(self, u'すべてのファイルにポーズをつけますか？' +
+                               u'\n「いいえ」なら表示されているファイルのみ',
+                               u'確認',  wx.YES_NO)
+        response = dlg.ShowModal()
+        dlg.Destroy()
+
         wav_names = []
         labels_names = []
 
-        if (self.rb.Selection == ONLY_SELECTED_FILE) and \
-                (self.list.SelectedItemCount != 0):
-            item = self.list.GetFirstSelected()
-            while item != -1:
-                wav_names.append(self.list.GetItemText(item))
-                labels_names.append(self.list.GetItem(item, 1).GetText())
-                item = self.list.GetNextSelected(item)
+        if response == wx.ID_NO:
+            wav_names.append(self.list.GetItem(self.list_index, 0).GetText())
+            labels_names.append(
+                self.list.GetItem(self.list_index, 1).GetText())
         else:
             for i in range(self.list.ItemCount):
                 wav_names.append(self.list.GetItem(i, 0).GetText())
@@ -644,11 +718,6 @@ class MainFrame(wx.Frame):
         self.view.pause_mode_play(factor, add)
         self.set_enable()
         self.tb.EnableTool(ID_HEAD, True)
-
-    #def OnPlaySel(self, evt):
-    #    self.view.playsel()
-    #    self.set_enable()
-    #    self.tb.EnableTool(ID_HEAD, True)
 
     def OnPlayBorder(self, evt):
         self.view.play_border()

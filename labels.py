@@ -25,9 +25,9 @@ class Label(object):
         if start > end:
             raise Exception('[Label] Error: start(%d) > end(%d)' %
                             (start, end))
-        elif end - start < MIN_DUR:
-            raise Exception('[Label] Error: start(%d) - end(%d) < MIN_DUR(%d)'
-                            % (start, end, MIN_DUR))
+        #elif end - start < MIN_DUR:
+        #    raise Exception('[Label] Error: start(%d) - end(%d) < MIN_DUR(%d)'
+        #                    % (start, end, MIN_DUR))
 
     def validate_label(self, label):
         if (label != LBL_PAUSE) and (label != LBL_CUT):
@@ -331,3 +331,16 @@ class Labels(list):
                 label.start = prev.end
 
             prev = label
+
+    def is_sorted(self):
+        if len(self) == 0:
+            return True
+
+        prev = self[0]
+
+        for label in self[1:]:
+            if prev.end > label.end:
+                return False
+            prev = label
+
+        return True

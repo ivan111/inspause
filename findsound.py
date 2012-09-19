@@ -3,7 +3,7 @@
 import audioop
 import wave
 
-from labels import Label, Labels
+from labels import Label, Labels, MIN_DUR
 
 DEBUG = False
 
@@ -11,8 +11,7 @@ WAV_SCALE = 10
 DEFAULT_SIL_LV = 50
 DEFAULT_SIL_DUR = 0.3
 DEFAULT_LABEL_DUR = 0.1
-#DEFAULT_RATE = 24
-DEFAULT_RATE = 24
+DEFAULT_RATE = 48
 
 
 # based on the Sound Finder Audacity script
@@ -43,13 +42,13 @@ def find_sound(in_fname, sil_lv=DEFAULT_SIL_LV, sil_dur=DEFAULT_SIL_DUR,
     thres = sil_lv * max_val / 100
     # Convert the silence duration in seconds to a length in samples
     sil_length = sil_dur * rate
+    snd_length = MIN_DUR * rate
     sil_c = 0  # silence counter
+    snd_c = 0
     sil_start = -1
     snd_start = -1
     snd_search = True  # True if we're looking for the start of a sound
     labels = Labels()
-
-    snd_c = 0
 
     for n, v in enumerate(data):
         if v <= thres:
@@ -57,17 +56,22 @@ def find_sound(in_fname, sil_lv=DEFAULT_SIL_LV, sil_dur=DEFAULT_SIL_DUR,
             if sil_start == -1:
                 sil_start = n
             elif (not snd_search) and (snd_start != -1) and \
-                    (sil_c > sil_length):
+                    (sil_c > sil_length) and (snd_c > snd_length):
                 start_time = float(snd_start) / rate - label_before_dur
                 start_time = max(0, min(start_time, max_s))
                 end_time = float(sil_start) / rate + label_after_dur
                 end_time = max(0, min(end_time, max_s))
-                labels.append(Label(start_time, end_time))
+                try:
+                    labels.append(Label(start_time, end_time))
+                except:
+                    pass
 
                 snd_search = True
                 sil_c = 0
+                snd_c = 0
                 sil_start = -1
         else:
+            snd_c = snd_c + 1
             if snd_search:
                 snd_search = False
                 snd_start = n
@@ -81,7 +85,10 @@ def find_sound(in_fname, sil_lv=DEFAULT_SIL_LV, sil_dur=DEFAULT_SIL_DUR,
         end_time = max(0, min(end_time, max_s))
         if end_time < start_time:
             end_time = max_s
-        labels.append(Label(start_time, end_time))
+        try:
+            labels.append(Label(start_time, end_time))
+        except:
+            pass
 
     labels.subtract()
 
