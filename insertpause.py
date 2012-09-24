@@ -5,12 +5,13 @@ import wave
 
 from labels import Labels, LBL_CUT
 
-DEFAULT_FACTOR = 1.2
-DEFAULT_ADD = 0.5
+FACTOR = 1.2
+ADD = 0.5
 
 
 def insert_pause(in_fname, out_fname, pause_fname,
-                 factor=DEFAULT_FACTOR, add=DEFAULT_ADD):
+                 factor=FACTOR, add=ADD):
+
     in_wf = wave.open(in_fname, 'r')
     out_wf = wave.open(out_fname, 'w')
     out_wf.setnchannels(in_wf.getnchannels())

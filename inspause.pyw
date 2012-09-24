@@ -3,9 +3,7 @@
 import codecs
 from ConfigParser import SafeConfigParser, NoSectionError, NoOptionError
 import os
-import random
 import sys
-import threading
 
 already_exists = False
 
@@ -25,18 +23,28 @@ if already_exists:
 
 import wx
 import wx.lib.masked as masked
-import wx.xrc as xrc
 
 import persist
 
-from findsound import find_sound
-from findsound import DEFAULT_SIL_LV, DEFAULT_SIL_DUR
-from insertpause import insert_pause, DEFAULT_FACTOR, DEFAULT_ADD
-from labels import Labels
-from revpause import rev_pause
+import findsound
+from findsound import find_sound, SIL_LV, SIL_DUR, RATE, SND_DUR
+from findsound import LABEL_BEFORE_DUR, LABEL_AFTER_DUR, WAV_SCALE
+from insertpause import insert_pause, FACTOR, ADD
+import labels
+from labels import MIN_DUR as LBL_MIN_DUR
+import revpause
+from revpause import rev_pause, SIL_LV as REV_SIL_LV, SIL_DUR as REV_SIL_DUR
+from revpause import RATE as REV_RATE, TOLERABLE_SCORE
+from revpause import WAV_SCALE as REV_WAV_SCALE
+import waveview
 from waveview import WaveView, EVT_CHANGE_CUR_ID, EVT_EOF_ID
+from waveview import SEEK, SEEK_CTRL, SEEK_SHIFT, RATE as WV_RATE
+from waveview import MIN_RATE as WV_MIN_RATE, MAX_RATE as WV_MAX_RATE
 
+APP_NAME = 'InsPause'
 
+PERSIST_FILE = 'persist.txt'
+LOG_FILE = 'log.txt'
 CONFIG_FILE = 'settings.ini'
 LABELS_DIR = 'labels'
 PAUSE_DIR = 'pause'
@@ -68,51 +76,19 @@ FACTOR_MAX = 9.99
 ADD_MIN = 0.0
 ADD_MAX = 9.99
 
-surnames = [u'佐藤', u'鈴木', u'高橋', u'田中', u'伊藤', u'山本', u'渡辺',
-            u'中村', u'小林', u'加藤', u'吉田', u'山田', u'佐々木', u'山口',
-            u'松本', u'井上', u'木村', u'斎藤', u'林', u'清水', u'山崎',
-            u'阿部', u'森', u'池田', u'橋本', u'山下', u'石川', u'中島',
-            u'前田', u'藤田', u'小川', u'後藤', u'岡田', u'長谷川', u'村上',
-            u'石井', u'近藤', u'坂本', u'遠藤', u'藤井', u'青木', u'西村',
-            u'福田', u'斉藤', u'太田', u'藤原', u'三浦', u'岡本', u'松田',
-            u'中川', u'中野', u'小野', u'原田', u'田村', u'竹内', u'金子',
-            u'和田', u'中山', u'石田', u'上田', u'森田', u'柴田', u'酒井',
-            u'原', u'横山', u'宮崎', u'工藤', u'宮本', u'内田', u'高木',
-            u'谷口', u'安藤', u'大野', u'丸山', u'今井', u'高田', u'藤本',
-            u'河野', u'小島', u'村田', u'武田', u'上野', u'杉山', u'増田',
-            u'平野', u'菅原', u'小山', u'久保', u'大塚', u'千葉', u'松井',
-            u'岩崎', u'木下', u'松尾', u'野口', u'野村', u'佐野', u'菊地',
-            u'渡部', u'大西', u'ズルムケ', u'おっさん', u'おばはん',
-            u'おやじ', u'おふくろ', u'海老蔵']
-
 try:
     dirName = os.path.dirname(os.path.abspath(__file__))
 except:
     dirName = os.path.dirname(os.path.abspath(sys.argv[0]))
 
-persist_file = os.path.join(dirName, 'persist.txt')
+persist_file = os.path.join(dirName, PERSIST_FILE)
 
 
 def main():
-    app = wx.App(redirect=True, filename='log.txt')
-    frame = MainFrame(None, -1, 'InsPause')
+    app = wx.App(redirect=True, filename=LOG_FILE)
+    frame = MainFrame(None, -1, APP_NAME)
     frame.Show(True)
     app.MainLoop()
-
-
-class DirDrop(wx.FileDropTarget):
-    def __init__(self, window):
-        wx.FileDropTarget.__init__(self)
-        self.window = window
-
-    def OnDropFiles(self, x, y, names):
-        if len(names) == 1:
-            if os.path.isdir(names[0]):
-                self.window.list_index = 0
-                self.window.set_dir(names[0])
-            else:
-                self.window.list_index = 0
-                self.window.set_dir(os.path.dirname(names[0]))
 
 
 class MainFrame(wx.Frame):
@@ -144,8 +120,15 @@ class MainFrame(wx.Frame):
 
         wx.CallAfter(self.register_controls)
 
+        self.set_debug()
+
         self.Centre()
         self.Show(True)
+
+    def set_debug(self):
+        if self.debug:
+            revpause.DEBUG = True
+            waveview.DEBUG = True
 
     def register_controls(self):
         self.Freeze()
@@ -158,53 +141,161 @@ class MainFrame(wx.Frame):
         self.pm.RegisterAndRestore(self.splitter)
 
     def read_conf(self):
+        conf = MyConfigParser()
         try:
-            conf = SafeConfigParser()
-            f = codecs.open(CONFIG_FILE, 'r', 'utf8')
+            if os.name == 'nt':
+                f = codecs.open(CONFIG_FILE, 'r', 'CP932')
+            else:
+                f = codecs.open(CONFIG_FILE, 'r', 'utf8')
             conf.readfp(f)
+        except IOError:
+            pass
 
-            sil_lv = int(conf.get('find', 'sil_lv'))
-            self.sil_lv = max(0, min(sil_lv, 100))
-            sil_dur = float(conf.get('find', 'sil_dur'))
-            self.sil_dur = max(SIL_DUR_MIN, min(sil_dur, SIL_DUR_MAX))
+        self.debug = conf.mygetboolean('DEFAULT', 'debug', False)
 
-            factor = float(conf.get('pause', 'factor'))
-            self.factor = max(FACTOR_MIN, min(factor, FACTOR_MAX))
-            add = float(conf.get('pause', 'add'))
-            self.add = max(ADD_MIN, min(add, ADD_MAX))
+        self.dir_name_conf = conf.myget('dir', 'wav', '')
+        self.list_index = conf.mygetint('dir', 'index', 0)
 
-            self.dir_name_conf = conf.get('dir', 'wav')
-            self.list_index = int(conf.get('dir', 'index'))
-        except (NoSectionError, IOError, NoOptionError):
-            self.sil_lv = DEFAULT_SIL_LV
-            self.sil_dur = DEFAULT_SIL_DUR
+        self.lbl_min_dur = conf.mygetfloat('label', 'min_dur', LBL_MIN_DUR)
+        labels.MIN_DUR = self.lbl_min_dur
 
-            self.factor = DEFAULT_FACTOR
-            self.add = DEFAULT_ADD
+        self.sil_lv = conf.mygetint('find', 'sil_lv', SIL_LV, 0, 100)
+        self.sil_dur = conf.mygetfloat('find', 'sil_dur', SIL_DUR,
+            SIL_DUR_MIN, SIL_DUR_MAX)
+        self.label_before_dur = conf.mygetfloat('find', 'label_before_dur',
+            LABEL_BEFORE_DUR)
+        self.label_after_dur = conf.mygetfloat('find', 'label_after_dur',
+            LABEL_AFTER_DUR)
+        self.rate = conf.mygetint('find', 'rate', RATE)
+        self.snd_dur = conf.mygetfloat('find', 'snd_dur', SND_DUR)
 
-            self.dir_name_conf = ''
-            self.list_index = 0
+        self.factor = conf.mygetfloat('pause', 'factor', FACTOR,
+            FACTOR_MIN, FACTOR_MAX)
+        self.add = conf.mygetfloat('pause', 'add', ADD, ADD_MIN, ADD_MAX)
+
+        self.seek = conf.mygetint('view', 'seek', SEEK)
+        waveview.SEEK = self.seek
+        self.seek_ctrl = conf.mygetint('view', 'seek_ctrl', SEEK_CTRL)
+        waveview.SEEK_CTRL = self.seek_ctrl
+        self.seek_shift = conf.mygetint('view', 'seek_shift', SEEK_SHIFT)
+        waveview.SEEK_SHIFT = self.seek_shift
+        self.wv_rate = conf.mygetint('view', 'default_rate', WV_RATE)
+        waveview.RATE = self.wv_rate
+        self.wv_min_rate = conf.mygetint('view', 'min_rate', WV_MIN_RATE)
+        waveview.MIN_RATE = self.wv_min_rate
+        self.wv_max_rate = conf.mygetint('view', 'max_rate', WV_MAX_RATE)
+        waveview.MAX_RATE = self.wv_max_rate
+        self.wav_scale = conf.mygetint('view', 'wav_scale', WAV_SCALE, 1, 100)
+        findsound.WAV_SCALE = self.wav_scale
+        waveview.WAV_SCALE = self.wav_scale
+
+        self.rev_sil_lv = conf.mygetint('reverse', 'sil_lv', REV_SIL_LV)
+        self.rev_sil_dur = conf.mygetfloat('reverse', 'sil_dur', REV_SIL_DUR)
+        self.rev_rate = conf.mygetint('reverse', 'rate', REV_RATE)
+        self.tolerable_score = conf.mygetint('reverse', 'tolerable_score',
+                TOLERABLE_SCORE)
+        revpause.TOLERABLE_SCORE = self.tolerable_score
+        self.rev_wav_scale = conf.mygetint('reverse', 'wav_scale',
+                REV_WAV_SCALE, 1, 100)
+        revpause.WAV_SCALE = self.rev_wav_scale
+
+        self.dsp_toolbar = conf.mygetboolean('button', 'toolbar', True)
+        self.dsp_head = conf.mygetboolean('button', 'head', True)
+        self.dsp_play = conf.mygetboolean('button', 'play', True)
+        self.dsp_playpause = conf.mygetboolean('button', 'pause_mode_play',
+                True)
+        self.dsp_playborder = conf.mygetboolean('button', 'play_near_cursor',
+                True)
+        self.dsp_pause = conf.mygetboolean('button', 'pause', True)
+        self.dsp_tail = conf.mygetboolean('button', 'tail', True)
+        self.dsp_zoomin = conf.mygetboolean('button', 'zoomin', True)
+        self.dsp_zoomout = conf.mygetboolean('button', 'zoomout', True)
+        self.dsp_separator = conf.mygetboolean('button', 'separator', True)
+        self.dsp_cut = conf.mygetboolean('button', 'cut', True)
+        self.dsp_mergeleft = conf.mygetboolean('button', 'merge_left', True)
+        self.dsp_mergeright = conf.mygetboolean('button', 'merge_right', True)
+        self.dsp_undo = conf.mygetboolean('button', 'undo', True)
+        self.dsp_redo = conf.mygetboolean('button', 'redo', True)
+        self.dsp_save = conf.mygetboolean('button', 'save', True)
+        self.dsp_insert = conf.mygetboolean('button', 'insert', True)
+        self.dsp_remove = conf.mygetboolean('button', 'remove', True)
 
     def write_conf(self):
         conf = SafeConfigParser()
 
+        conf.set('DEFAULT', 'debug', self.to_onoff(self.debug))
+
+        conf.add_section('dir')
+        if self.dir_name is None:
+            self.dir_name = ''
+        if os.name == 'nt':
+            conf.set('dir', 'wav', self.dir_name.encode('CP932'))
+        else:
+            conf.set('dir', 'wav', self.dir_name.encode('utf8'))
+
+        conf.set('dir', 'index', str(self.list_index))
+
+        conf.add_section('label')
+        conf.set('label', 'min_dur', str(self.lbl_min_dur))
+
         conf.add_section('find')
         conf.set('find', 'sil_lv', str(self.sld_sil_lv.GetValue()))
         conf.set('find', 'sil_dur', str(self.nc_sil_dur.GetValue()))
+        conf.set('find', 'label_before_dur', str(self.label_before_dur))
+        conf.set('find', 'label_after_dur', str(self.label_after_dur))
+        conf.set('find', 'rate', str(self.rate))
+        conf.set('find', 'snd_dur', str(self.snd_dur))
 
         conf.add_section('pause')
         conf.set('pause', 'factor', str(self.nc_factor.GetValue()))
         conf.set('pause', 'add', str(self.nc_add.GetValue()))
 
-        conf.add_section('dir')
-        if self.dir_name is None:
-            self.dir_name = ''
-        conf.set('dir', 'wav', self.dir_name.encode('utf8'))
+        conf.add_section('view')
+        conf.set('view', 'seek', str(self.seek))
+        conf.set('view', 'seek_ctrl', str(self.seek_ctrl))
+        conf.set('view', 'seek_shift', str(self.seek_shift))
+        conf.set('view', 'default_rate', str(self.wv_rate))
+        conf.set('view', 'min_rate', str(self.wv_min_rate))
+        conf.set('view', 'max_rate', str(self.wv_max_rate))
+        conf.set('view', 'wav_scale', str(self.wav_scale))
 
-        conf.set('dir', 'index', str(self.list_index))
+        conf.add_section('reverse')
+        conf.set('reverse', 'sil_lv', str(self.rev_sil_lv))
+        conf.set('reverse', 'sil_dur', str(self.rev_sil_dur))
+        conf.set('reverse', 'rate', str(self.rev_rate))
+        conf.set('reverse', 'tolerable_score', str(self.tolerable_score))
+        conf.set('reverse', 'wav_scale', str(self.rev_wav_scale))
+
+        conf.add_section('button')
+        conf.set('button', 'toolbar', self.to_onoff(self.dsp_toolbar))
+        conf.set('button', 'head', self.to_onoff(self.dsp_head))
+        conf.set('button', 'play', self.to_onoff(self.dsp_play))
+        conf.set('button', 'pause_mode_play',
+                self.to_onoff(self.dsp_playpause))
+        conf.set('button', 'play_near_cursor',
+                self.to_onoff(self.dsp_playborder))
+        conf.set('button', 'pause', self.to_onoff(self.dsp_pause))
+        conf.set('button', 'tail', self.to_onoff(self.dsp_tail))
+        conf.set('button', 'zoomin', self.to_onoff(self.dsp_zoomin))
+        conf.set('button', 'zoomout', self.to_onoff(self.dsp_zoomout))
+        conf.set('button', 'separator', self.to_onoff(self.dsp_separator))
+        conf.set('button', 'cut', self.to_onoff(self.dsp_cut))
+        conf.set('button', 'merge_left', self.to_onoff(self.dsp_mergeleft))
+        conf.set('button', 'merge_right', self.to_onoff(self.dsp_mergeright))
+        conf.set('button', 'undo', self.to_onoff(self.dsp_undo))
+        conf.set('button', 'redo', self.to_onoff(self.dsp_redo))
+        conf.set('button', 'save', self.to_onoff(self.dsp_save))
+        conf.set('button', 'insert', self.to_onoff(self.dsp_insert))
+        conf.set('button', 'remove', self.to_onoff(self.dsp_remove))
 
         f = open(CONFIG_FILE, 'w')
         conf.write(f)
+
+    def to_onoff(self, val):
+        if val:
+            return "on"
+        else:
+            return "off"
 
     def InitUI(self):
         self.init_toolbar()
@@ -348,95 +439,149 @@ class MainFrame(wx.Frame):
         self.set_enable()
 
     def init_toolbar(self):
+        if not self.dsp_toolbar:
+            return
+
         self.tb = self.CreateToolBar()
-        tb_head = self.tb.AddLabelTool(ID_HEAD, 'Head',
-                                       wx.Bitmap('icon/head.png'))
-        tb_head.ShortHelp = u'先頭へ(Home)'
-        tb_play = self.tb.AddLabelTool(ID_PLAY, 'Play',
-                                       wx.Bitmap('icon/play.png'))
-        tb_play.ShortHelp = u'再生(Space)'
-        tb_playpause = self.tb.AddLabelTool(ID_PLAYPAUSE, 'Pause Mode Play',
-                                            wx.Bitmap('icon/playpause.png'))
-        tb_playpause.ShortHelp = u'ポーズモード再生'
-        tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border',
-                                             wx.Bitmap('icon/playborder.png'))
-        tb_playborder.ShortHelp = u'境界を再生(b)'
-        tb_pause = self.tb.AddLabelTool(ID_PAUSE, 'Pause',
-                                        wx.Bitmap('icon/pause.png'))
-        tb_pause.ShortHelp = u'一時停止(Space)'
-        tb_tail = self.tb.AddLabelTool(ID_TAIL, 'Tail',
-                                       wx.Bitmap('icon/tail.png'))
-        tb_tail.ShortHelp = u'末尾へ(End)'
-        tb_zoomin = self.tb.AddLabelTool(ID_ZOOMIN, 'Zooom In',
-                                         wx.Bitmap('icon/zoomin.png'))
-        tb_zoomin.ShortHelp = u'拡大(+)'
-        tb_zoomout = self.tb.AddLabelTool(ID_ZOOMOUT, 'Zooom Out',
-                                          wx.Bitmap('icon/zoomout.png'))
-        tb_zoomout.ShortHelp = u'縮小(-)'
 
-        self.tb.AddSeparator()
+        if self.dsp_head:
+            tb_head = self.tb.AddLabelTool(ID_HEAD, 'Head',
+                    wx.Bitmap('icon/head.png'))
+            tb_head.ShortHelp = u'先頭へ(Home)'
+            self.Bind(wx.EVT_TOOL, self.OnHead, tb_head)
 
-        tb_cut = self.tb.AddLabelTool(ID_CUT, 'Cut', wx.Bitmap('icon/cut.png'))
-        tb_cut.ShortHelp = u'分割(c)'
-        tb_mergel = self.tb.AddLabelTool(ID_MERGE_L, 'Merge Left',
-                                         wx.Bitmap('icon/mergeleft.png'))
-        tb_mergel.ShortHelp = u'左と結合'
-        tb_merger = self.tb.AddLabelTool(ID_MERGE_R, 'Merge Right',
-                                         wx.Bitmap('icon/mergeright.png'))
-        tb_merger.ShortHelp = u'右と結合'
-        tb_undo = self.tb.AddLabelTool(ID_UNDO, 'Undo',
-                                       wx.Bitmap('icon/undo.png'))
-        tb_undo.ShortHelp = u'元に戻す(Ctrl+z)'
-        tb_redo = self.tb.AddLabelTool(ID_REDO, 'Redo',
-                                       wx.Bitmap('icon/redo.png'))
-        tb_redo.ShortHelp = u'やり直し'
-        tb_save = self.tb.AddLabelTool(ID_SAVE, 'Save',
-                                       wx.Bitmap('icon/save.png'))
-        tb_save.ShortHelp = u'ポーズ情報の保存(Ctrl+s)'
-        tb_insert = self.tb.AddLabelTool(ID_INSERT, 'Insert Label',
-                                         wx.Bitmap('icon/insert.png'))
-        tb_insert.ShortHelp = u'ポーズの挿入'
-        tb_remove = self.tb.AddLabelTool(ID_REMOVE, 'Remove Label',
-                                         wx.Bitmap('icon/remove.png'))
-        tb_remove.ShortHelp = u'ポーズの削除(Delete)'
+        if self.dsp_play:
+            tb_play = self.tb.AddLabelTool(ID_PLAY, 'Play',
+                    wx.Bitmap('icon/play.png'))
+            tb_play.ShortHelp = u'再生(Space)'
+            self.Bind(wx.EVT_TOOL, self.OnPlay, tb_play)
+
+        if self.dsp_playpause:
+            tb_playpause = self.tb.AddLabelTool(ID_PLAYPAUSE,
+                    'Pause Mode Play', wx.Bitmap('icon/playpause.png'))
+            tb_playpause.ShortHelp = u'ポーズモード再生'
+            self.Bind(wx.EVT_TOOL, self.OnPlayPause, tb_playpause)
+
+        if self.dsp_playborder:
+            tb_playborder = self.tb.AddLabelTool(ID_PLAYBORDER, 'Play Border',
+                    wx.Bitmap('icon/playborder.png'))
+            tb_playborder.ShortHelp = u'もしカット再生(b)'
+            self.Bind(wx.EVT_TOOL, self.OnPlayBorder, tb_playborder)
+
+        if self.dsp_pause:
+            tb_pause = self.tb.AddLabelTool(ID_PAUSE, 'Pause',
+                    wx.Bitmap('icon/pause.png'))
+            tb_pause.ShortHelp = u'一時停止(Space)'
+            self.Bind(wx.EVT_TOOL, self.OnPause, tb_pause)
+
+        if self.dsp_tail:
+            tb_tail = self.tb.AddLabelTool(ID_TAIL, 'Tail',
+                    wx.Bitmap('icon/tail.png'))
+            tb_tail.ShortHelp = u'末尾へ(End)'
+            self.Bind(wx.EVT_TOOL, self.OnTail, tb_tail)
+
+        if self.dsp_zoomin:
+            tb_zoomin = self.tb.AddLabelTool(ID_ZOOMIN, 'Zooom In',
+                    wx.Bitmap('icon/zoomin.png'))
+            tb_zoomin.ShortHelp = u'拡大(+)'
+            self.Bind(wx.EVT_TOOL, self.OnZoomIn, tb_zoomin)
+
+        if self.dsp_zoomout:
+            tb_zoomout = self.tb.AddLabelTool(ID_ZOOMOUT, 'Zooom Out',
+                    wx.Bitmap('icon/zoomout.png'))
+            tb_zoomout.ShortHelp = u'縮小(-)'
+            self.Bind(wx.EVT_TOOL, self.OnZoomOut, tb_zoomout)
+
+        if self.dsp_separator:
+            self.tb.AddSeparator()
+
+        if self.dsp_cut:
+            tb_cut = self.tb.AddLabelTool(ID_CUT, 'Cut',
+                    wx.Bitmap('icon/cut.png'))
+            tb_cut.ShortHelp = u'分割(c)'
+            self.Bind(wx.EVT_TOOL, self.OnCut, tb_cut)
+
+        if self.dsp_mergeleft:
+            tb_mergel = self.tb.AddLabelTool(ID_MERGE_L, 'Merge Left',
+                    wx.Bitmap('icon/mergeleft.png'))
+            tb_mergel.ShortHelp = u'左と結合(l)'
+            self.Bind(wx.EVT_TOOL, self.OnMergeLeft, tb_mergel)
+
+        if self.dsp_mergeright:
+            tb_merger = self.tb.AddLabelTool(ID_MERGE_R, 'Merge Right',
+                    wx.Bitmap('icon/mergeright.png'))
+            tb_merger.ShortHelp = u'右と結合(r)'
+            self.Bind(wx.EVT_TOOL, self.OnMergeRight, tb_merger)
+
+        if self.dsp_undo:
+            tb_undo = self.tb.AddLabelTool(ID_UNDO, 'Undo',
+                    wx.Bitmap('icon/undo.png'))
+            tb_undo.ShortHelp = u'元に戻す(Ctrl+z)'
+            self.Bind(wx.EVT_TOOL, self.OnUndo, tb_undo)
+
+        if self.dsp_redo:
+            tb_redo = self.tb.AddLabelTool(ID_REDO, 'Redo',
+                    wx.Bitmap('icon/redo.png'))
+            tb_redo.ShortHelp = u'やり直し(Ctrl+y)'
+            self.Bind(wx.EVT_TOOL, self.OnRedo, tb_redo)
+
+        if self.dsp_save:
+            tb_save = self.tb.AddLabelTool(ID_SAVE, 'Save',
+                    wx.Bitmap('icon/save.png'))
+            tb_save.ShortHelp = u'ポーズ情報の保存(Ctrl+s)'
+            self.Bind(wx.EVT_TOOL, self.OnSave, tb_save)
+
+        if self.dsp_insert:
+            tb_insert = self.tb.AddLabelTool(ID_INSERT, 'Insert Label',
+                    wx.Bitmap('icon/insert.png'))
+            tb_insert.ShortHelp = u'ポーズの挿入(i)'
+            self.Bind(wx.EVT_TOOL, self.OnInsert, tb_insert)
+
+        if self.dsp_remove:
+            tb_remove = self.tb.AddLabelTool(ID_REMOVE, 'Remove Label',
+                    wx.Bitmap('icon/remove.png'))
+            tb_remove.ShortHelp = u'ポーズの削除(Delete)'
+            self.Bind(wx.EVT_TOOL, self.OnRemove, tb_remove)
+
         self.tb.Realize()
 
-        self.Bind(wx.EVT_TOOL, self.OnSave, tb_save)
-        self.Bind(wx.EVT_TOOL, self.OnHead, tb_head)
-        self.Bind(wx.EVT_TOOL, self.OnPlay, tb_play)
-        self.Bind(wx.EVT_TOOL, self.OnPlayPause, tb_playpause)
-        self.Bind(wx.EVT_TOOL, self.OnPlayBorder, tb_playborder)
-        self.Bind(wx.EVT_TOOL, self.OnPause, tb_pause)
-        self.Bind(wx.EVT_TOOL, self.OnTail, tb_tail)
-        self.Bind(wx.EVT_TOOL, self.OnZoomIn, tb_zoomin)
-        self.Bind(wx.EVT_TOOL, self.OnZoomOut, tb_zoomout)
-
-        self.Bind(wx.EVT_TOOL, self.OnCut, tb_cut)
-        self.Bind(wx.EVT_TOOL, self.OnMergeLeft, tb_mergel)
-        self.Bind(wx.EVT_TOOL, self.OnMergeRight, tb_merger)
-        self.Bind(wx.EVT_TOOL, self.OnUndo, tb_undo)
-        self.Bind(wx.EVT_TOOL, self.OnRedo, tb_redo)
-        self.Bind(wx.EVT_TOOL, self.OnInsert, tb_insert)
-        self.Bind(wx.EVT_TOOL, self.OnRemove, tb_remove)
-
     def set_enable(self):
-        self.tb.EnableTool(ID_SAVE, self.view.can_save())
-        self.tb.EnableTool(ID_HEAD, self.view.can_head())
-        self.tb.EnableTool(ID_PLAY, self.view.can_play())
-        self.tb.EnableTool(ID_PLAYPAUSE, self.view.can_pause_mode_play())
-        self.tb.EnableTool(ID_PLAYBORDER, self.view.can_play_border())
-        self.tb.EnableTool(ID_PAUSE, self.view.can_pause())
-        self.tb.EnableTool(ID_TAIL, self.view.can_tail())
-        self.tb.EnableTool(ID_ZOOMIN, self.view.can_zoomin())
-        self.tb.EnableTool(ID_ZOOMOUT, self.view.can_zoomout())
+        if not self.dsp_toolbar:
+            return
 
-        self.tb.EnableTool(ID_CUT, self.view.can_cut())
-        self.tb.EnableTool(ID_MERGE_L, self.view.can_merge_left())
-        self.tb.EnableTool(ID_MERGE_R, self.view.can_merge_right())
-        self.tb.EnableTool(ID_UNDO, self.view.can_undo())
-        self.tb.EnableTool(ID_REDO, self.view.can_redo())
-        self.tb.EnableTool(ID_INSERT, self.view.can_insert_label())
-        self.tb.EnableTool(ID_REMOVE, self.view.can_remove_label())
+        if self.dsp_head:
+            self.tb.EnableTool(ID_HEAD, self.view.can_head())
+        if self.dsp_play:
+            self.tb.EnableTool(ID_PLAY, self.view.can_play())
+        if self.dsp_playpause:
+            self.tb.EnableTool(ID_PLAYPAUSE, self.view.can_pause_mode_play())
+        if self.dsp_playborder:
+            self.tb.EnableTool(ID_PLAYBORDER, self.view.can_play_border())
+        if self.dsp_pause:
+            self.tb.EnableTool(ID_PAUSE, self.view.can_pause())
+        if self.dsp_tail:
+            self.tb.EnableTool(ID_TAIL, self.view.can_tail())
+        if self.dsp_zoomin:
+            self.tb.EnableTool(ID_ZOOMIN, self.view.can_zoomin())
+        if self.dsp_zoomout:
+            self.tb.EnableTool(ID_ZOOMOUT, self.view.can_zoomout())
+
+        if self.dsp_cut:
+            self.tb.EnableTool(ID_CUT, self.view.can_cut())
+        if self.dsp_mergeleft:
+            self.tb.EnableTool(ID_MERGE_L, self.view.can_merge_left())
+        if self.dsp_mergeright:
+            self.tb.EnableTool(ID_MERGE_R, self.view.can_merge_right())
+        if self.dsp_undo:
+            self.tb.EnableTool(ID_UNDO, self.view.can_undo())
+        if self.dsp_redo:
+            self.tb.EnableTool(ID_REDO, self.view.can_redo())
+        if self.dsp_save:
+            self.tb.EnableTool(ID_SAVE, self.view.can_save())
+        if self.dsp_insert:
+            self.tb.EnableTool(ID_INSERT, self.view.can_insert_label())
+        if self.dsp_remove:
+            self.tb.EnableTool(ID_REMOVE, self.view.can_remove_label())
 
         if self.dir_name and (not self.view.playing):
             self.fsp.Enable()
@@ -447,9 +592,7 @@ class MainFrame(wx.Frame):
 
     def confirm_save(self):
         if self.view.can_save():
-            your_name = surnames[random.randint(0, len(surnames) - 1)]
-            dlg = wx.MessageDialog(self, u'%sさん、変更を保存しますか？' %
-                                   your_name, u'確認',  wx.YES_NO)
+            dlg = wx.MessageDialog(self, u'変更を保存しますか？', u'確認',  wx.YES_NO)
             response = dlg.ShowModal()
             dlg.Destroy()
 
@@ -521,11 +664,16 @@ class MainFrame(wx.Frame):
             return
 
         if not os.path.exists(labels_file):
-            labels = find_sound(wav_file)
+            labels = find_sound(wav_file, self.sil_lv, self.sil_dur,
+                    self.label_before_dur, self.label_after_dur,
+                    self.rate, self.snd_dur)
             labels.write(labels_file)
 
         self.view.set_labels(labels_file)
         self.view.sil_lv = self.sld_sil_lv.GetValue()
+
+        wav_name = os.path.basename(wav_file)
+        self.Title = wav_name
 
         self.set_enable()
 
@@ -533,7 +681,8 @@ class MainFrame(wx.Frame):
         sil_lv = self.sld_sil_lv.GetValue()
         sil_dur = self.nc_sil_dur.GetValue()
 
-        self.view.find(sil_lv, sil_dur)
+        self.view.find(sil_lv, sil_dur,
+                self.label_before_dur, self.label_after_dur)
 
     def OnReverse(self, evt):
         not_found = False
@@ -606,10 +755,16 @@ class MainFrame(wx.Frame):
 
         for i, (wav_file, rev_file) in \
                 enumerate(zip(wav_files, rev_files)):
-            dlg.Update(i, u'ポーズ情報作成中\n残りファイル数%d' %
+            dlg.Update(i + 1, u'ポーズ情報作成中\n残りファイル数%d' %
                        (len(wav_files) - i))
 
-            result = rev_pause(wav_file, rev_file)
+            try:
+                result = rev_pause(wav_file, rev_file, self.rev_sil_lv,
+                        self.rev_sil_dur, self.rev_rate,
+                        self.label_before_dur, self.label_after_dur)
+            except Exception as e:
+                print e.message
+                result = [[], True]
             labels, err = result
             labels_name = '%03d.txt' % (i + 1)
             labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_name)
@@ -622,13 +777,18 @@ class MainFrame(wx.Frame):
 
         if len(error_files) != 0:
             error_file = os.path.join(self.dir_name, ERROR_FILE)
-            f = open(error_file, 'w')
+            if os.name == 'nt':
+                f = codecs.open(error_file, 'w', 'CP932')
+            else:
+                f = codecs.open(error_file, 'w', 'utf8')
             for ef in error_files:
                 f.write(ef + '\n')
             f.close()
             msg = u'%d個のファイルが検索に失敗しました。\n' + \
                   u'ここに検索に失敗したファイルが書いてあります\n%s'
             wx.MessageBox(msg % (len(error_files), error_file), u'失敗', wx.OK)
+        else:
+            wx.MessageBox(u'完了しました', u'メッセージ', wx.OK)
 
         labels_file = self.list.GetItem(self.list_index, 1).GetText()
         labels_file = os.path.join(self.dir_name, LABELS_DIR, labels_file)
@@ -676,7 +836,9 @@ class MainFrame(wx.Frame):
             pause_file = os.path.join(self.dir_name, PAUSE_DIR, wav)
 
             if not os.path.exists(labels_file):
-                labels = find_sound(wav_file)
+                labels = find_sound(wav_file, self.sil_lv, self.sil_dur,
+                    self.label_before_dur, self.label_after_dur,
+                    self.rate, self.snd_dur)
                 labels.write(labels_file)
 
             insert_pause(wav_file, pause_file, labels_file,
@@ -684,10 +846,8 @@ class MainFrame(wx.Frame):
 
         dlg.Destroy()
 
-        your_name = surnames[random.randint(0, len(surnames) - 1)]
         pause_dir = os.path.join(self.dir_name, PAUSE_DIR)
-        wx.MessageBox(u'おい、%s！ここにできちょんけん\n%s' %
-                      (your_name, pause_dir), u'できたで', wx.OK)
+        wx.MessageBox(u'このフォルダにできています\n%s' % pause_dir, u'完了', wx.OK)
 
     def OnInsert(self, evt):
         self.view.insert_label()
@@ -775,6 +935,79 @@ class MainFrame(wx.Frame):
         self.pm.SaveAndUnregister()
 
         self.Destroy()
+
+
+class DirDrop(wx.FileDropTarget):
+    def __init__(self, window):
+        wx.FileDropTarget.__init__(self)
+        self.window = window
+
+    def OnDropFiles(self, x, y, names):
+        if len(names) == 1:
+            if os.path.isdir(names[0]):
+                self.window.list_index = 0
+                self.window.set_dir(names[0])
+            else:
+                self.window.list_index = 0
+                self.window.set_dir(os.path.dirname(names[0]))
+
+
+class MyConfigParser(SafeConfigParser):
+    def myget(self, section, option, default):
+        try:
+            return SafeConfigParser.get(self, section, option)
+        except (NoSectionError, NoOptionError):
+            return default
+        except Exception as e:
+            print e.message
+            return default
+
+    def mygetint(self, section, option, default, min_v=None, max_v=None):
+        try:
+            result = SafeConfigParser.getint(self, section, option)
+        except (NoSectionError, NoOptionError):
+            return default
+        except Exception as e:
+            print e.message
+
+            result = default
+
+        if min_v is not None:
+            result = max(min_v, result)
+
+        if max_v is not None:
+            result = min(max_v, result)
+
+        return result
+
+    def mygetfloat(self, section, option, default, min_v=None, max_v=None):
+        try:
+            result = SafeConfigParser.getfloat(self, section, option)
+        except (NoSectionError, NoOptionError):
+            return default
+        except Exception as e:
+            print e.message
+
+            result = default
+
+        if min_v is not None:
+            result = max(min_v, result)
+
+        if max_v is not None:
+            result = min(max_v, result)
+
+        return result
+
+    def mygetboolean(self, section, option, default):
+        try:
+            return SafeConfigParser.getboolean(self, section, option)
+        except (NoSectionError, NoOptionError):
+            return default
+        except Exception as e:
+            print e.message
+
+            return default
+
 
 if __name__ == '__main__':
     main()
