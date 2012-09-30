@@ -49,21 +49,25 @@ class WavePlayer(threading.Thread):
     def run(self):
         try:
             p = pyaudio.PyAudio()
+            stream = p.open(format=p.get_format_from_width(self.sampwidth),
+                    channels=self.nchannels,
+                    rate=self.framerate,
+                    output=True)
+
         except Exception as e:
             try:
                 if sys.platform == "win32":
                     p = mypyaudio.MyPyAudio()
+                    stream = p.open(format=p.get_format_from_width(self.sampwidth),
+                            channels=self.nchannels,
+                            rate=self.framerate,
+                            output=True)
                 else:
                     raise e
             except Exception as e2:
                 print e.message
                 print e2.message
                 raise e
-
-        stream = p.open(format=p.get_format_from_width(self.sampwidth),
-                        channels=self.nchannels,
-                        rate=self.framerate,
-                        output=True)
 
         self.pause_f = 0
 
