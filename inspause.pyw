@@ -143,7 +143,7 @@ class MainFrame(wx.Frame):
     def read_conf(self):
         conf = MyConfigParser()
         try:
-            if os.name == 'nt':
+            if sys.platform == 'win32':
                 f = codecs.open(CONFIG_FILE, 'r', 'CP932')
             else:
                 f = codecs.open(CONFIG_FILE, 'r', 'utf8')
@@ -228,7 +228,7 @@ class MainFrame(wx.Frame):
         conf.add_section('dir')
         if self.dir_name is None:
             self.dir_name = ''
-        if os.name == 'nt':
+        if sys.platform == 'win32':
             conf.set('dir', 'wav', self.dir_name.encode('CP932'))
         else:
             conf.set('dir', 'wav', self.dir_name.encode('utf8'))
@@ -777,7 +777,7 @@ class MainFrame(wx.Frame):
 
         if len(error_files) != 0:
             error_file = os.path.join(self.dir_name, ERROR_FILE)
-            if os.name == 'nt':
+            if sys.platform == 'win32':
                 f = codecs.open(error_file, 'w', 'CP932')
             else:
                 f = codecs.open(error_file, 'w', 'utf8')

@@ -11,7 +11,7 @@ py2exe_options = {
 
 setup(
   options = {"py2exe": py2exe_options},
-  data_files=[("icon", glob("icon\\*")), ("", ["LICENSE.txt", "README.txt"])],
+  data_files=[("icon", glob("icon\\*")), ("", ["LICENSE.txt", "README.txt", "libportaudio.dll"])],
   windows = [
     {"script" : "inspause.pyw", "icon_resources": [(0, "myicon.ico")]}],
   zipfile = None)
