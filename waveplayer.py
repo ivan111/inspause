@@ -53,8 +53,15 @@ class WavePlayer(threading.Thread):
                     channels=self.nchannels,
                     rate=self.framerate,
                     output=True)
+            stream.write(struct.pack('%ds' % CHUNK, ''))
 
         except Exception as e:
+            try:
+                stream.close()
+                p.terminate()
+            except:
+                pass
+
             try:
                 if sys.platform == "win32":
                     p = mypyaudio.MyPyAudio()
