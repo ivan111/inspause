@@ -8,7 +8,6 @@ import sys
 import wx
 
 from labels import LBL_CUT
-import mypyaudio
 
 EVT_UPDATE_ID = wx.NewId()
 EVT_EOF_ID = wx.NewId()
@@ -47,34 +46,12 @@ class WavePlayer(threading.Thread):
         self.pause_mode = False
 
     def run(self):
-        try:
-            p = pyaudio.PyAudio()
-            stream = p.open(format=p.get_format_from_width(self.sampwidth),
-                    channels=self.nchannels,
-                    rate=self.framerate,
-                    output=True)
-            stream.write(struct.pack('%ds' % CHUNK, ''))
+        p = pyaudio.PyAudio()
 
-        except Exception as e:
-            try:
-                stream.close()
-                p.terminate()
-            except:
-                pass
-
-            try:
-                if sys.platform == "win32":
-                    p = mypyaudio.MyPyAudio()
-                    stream = p.open(format=p.get_format_from_width(self.sampwidth),
-                            channels=self.nchannels,
-                            rate=self.framerate,
-                            output=True)
-                else:
-                    raise e
-            except Exception as e2:
-                print e.message
-                print e2.message
-                raise e
+        stream = p.open(format=p.get_format_from_width(self.sampwidth),
+                channels=self.nchannels,
+                rate=self.framerate,
+                output=True)
 
         self.pause_f = 0
 
