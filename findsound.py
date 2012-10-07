@@ -3,44 +3,46 @@
 import audioop
 import wave
 
-from labels import Label, Labels
+from labels import Label, Labels, MIN_DUR
+
+DEBUG = False
 
 WAV_SCALE = 10
-SIL_LV = 50
-SIL_DUR = 0.3
-SND_DUR = 0.2
-LABEL_BEFORE_DUR = 0.1
-LABEL_AFTER_DUR = 0.1
-RATE = 48
+DEFAULT_SIL_LV = 50
+DEFAULT_SIL_DUR = 0.3
+DEFAULT_LABEL_DUR = 0.1
+DEFAULT_RATE = 48
 
 
 # based on the Sound Finder Audacity script
 # by Jeremy R. Brown (http://www.jeremy-brown.com/)
 # Sound Finder based on the Silence Finder Audacity script
 # by Alex S. Brown, PMP (http://www.alexsbrown.com)
-def find_sound(in_fname, sil_lv=SIL_LV, sil_dur=SIL_DUR,
-               label_before_dur=LABEL_BEFORE_DUR,
-               label_after_dur=LABEL_AFTER_DUR, rate=RATE, snd_dur=SND_DUR,
-               wav_scale=WAV_SCALE):
-
+def find_sound(in_fname, sil_lv=DEFAULT_SIL_LV, sil_dur=DEFAULT_SIL_DUR,
+               label_before_dur=DEFAULT_LABEL_DUR,
+               label_after_dur=DEFAULT_LABEL_DUR, rate=DEFAULT_RATE):
     if (sil_lv < 0) or (100 < sil_lv):
         raise Exception('[find_sound] Error: sil_lv < 0 or 100 < sil_lv')
 
     wf = wave.open(in_fname, 'r')
 
+    if DEBUG:
+        print_wav_info(wf)
+
     buffer = wf.readframes(wf.getnframes())
     if wf.getnchannels() == 2:
         buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
     data = rms_ratecv(buffer, 1, wf.getsampwidth(), wf.getframerate(), rate)
+    width = wf.getsampwidth()
     max_s = float(wf.getnframes()) / wf.getframerate()
     wf.close()
 
-    max_val = max(data) / wav_scale
+    max_val = max(data) / WAV_SCALE
     # silence threshold level
     thres = sil_lv * max_val / 100
     # Convert the silence duration in seconds to a length in samples
     sil_length = sil_dur * rate
-    snd_length = snd_dur * rate
+    snd_length = MIN_DUR * rate
     sil_c = 0  # silence counter
     snd_c = 0
     sil_start = -1
@@ -55,17 +57,14 @@ def find_sound(in_fname, sil_lv=SIL_LV, sil_dur=SIL_DUR,
                 sil_start = n
             elif (not snd_search) and (snd_start != -1) and \
                     (sil_c > sil_length) and (snd_c > snd_length):
-
-                sil_f = get_sil_f(data, sil_start, thres,
-                        sil_start + int(label_after_dur * rate))
-                start_time = (float(snd_start) / rate) - label_before_dur
+                start_time = float(snd_start) / rate - label_before_dur
                 start_time = max(0, min(start_time, max_s))
-                end_time = float(sil_start + sil_f) / rate
+                end_time = float(sil_start) / rate + label_after_dur
                 end_time = max(0, min(end_time, max_s))
                 try:
                     labels.append(Label(start_time, end_time))
-                except Exception as e:
-                    print e.message
+                except:
+                    pass
 
                 snd_search = True
                 sil_c = 0
@@ -88,8 +87,8 @@ def find_sound(in_fname, sil_lv=SIL_LV, sil_dur=SIL_DUR,
             end_time = max_s
         try:
             labels.append(Label(start_time, end_time))
-        except Exception as e:
-            print e.message
+        except:
+            pass
 
     labels.subtract()
 
@@ -117,20 +116,6 @@ def rms_ratecv(fragment, nchannels, width, src_rate, dst_rate):
         res.append(audioop.rms(fragment[i * step: (i + 1) * step], width))
 
     return res
-
-
-def get_sil_f(data, start_f, thres, max_f=None):
-    if (max_f is None) or (len(data) < max_f):
-        max_f = len(data)
-
-    sil_c = 0
-    for i in range(start_f, max_f):
-        if data[i] <= thres:
-            sil_c = sil_c + 1
-        else:
-            break
-    return sil_c
-
 
 if __name__ == '__main__':
     labels = find_sound('in.wav')

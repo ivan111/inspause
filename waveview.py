@@ -8,7 +8,7 @@ import wave
 
 import wx
 
-from findsound import find_sound, rms_ratecv, WAV_SCALE, SIL_LV
+from findsound import find_sound, rms_ratecv, WAV_SCALE, DEFAULT_SIL_LV
 from labels import Labels, LBL_PAUSE, LBL_CUT
 from waveplayer import WavePlayer, EVT_UPDATE_ID, EVT_EOF_ID, EOFEvent
 
@@ -20,17 +20,13 @@ WAV_TOP = 30
 ARROW_SIZE = 5
 MIN_RATE = 12
 MAX_RATE = 384
-RATE = 384
+DEFAULT_RATE = 96
 PPU = 20  # Pixels Per Unit
 INSERT_DUR = 0.5
 
 NO_HANDLE = 0
 LEFT_HANDLE = 1
 RIGHT_HANDLE = 2
-
-SEEK = 1
-SEEK_CTRL = 100
-SEEK_SHIFT = 25
 
 ID_PAUSE = wx.NewId()
 ID_CUT = wx.NewId()
@@ -134,7 +130,7 @@ class WaveView(wx.ScrolledWindow):
             buffer = audioop.tomono(buffer, self.sampwidth, 0.5, 0.5)
         self.buffer = buffer
 
-        self.rate = RATE
+        self.rate = DEFAULT_RATE
 
         if self.wp:
             self.wp.cancel = True
@@ -262,6 +258,7 @@ class WaveView(wx.ScrolledWindow):
                 selected = False
 
             rect = None
+            sel_rect = None
             arrows = []
 
             rect = None
@@ -470,18 +467,9 @@ class WaveView(wx.ScrolledWindow):
         if not self.can_play_border():
             return
 
-        self.wp.play_border(self.cur_s, False)
-
-    def can_play_border(self):
-        return self.can_cut()
-
-    def play_selborder(self):
-        if not self.can_play_selborder():
-            return
-
         self.wp.play_border(self.ml().selected.end)
 
-    def can_play_selborder(self):
+    def can_play_border(self):
         if self.wp and self.wp.can_play() and self.ml and self.ml().selected:
             return True
         else:
@@ -864,8 +852,6 @@ class WaveView(wx.ScrolledWindow):
         elif key == wx.WXK_SPACE:
             if self.can_pause():
                 self.pause()
-            elif evt.ShiftDown() and self.can_play_selborder():
-                self.play_selborder()
             elif self.can_play():
                 self.play()
         elif key == wx.WXK_HOME:
@@ -874,36 +860,17 @@ class WaveView(wx.ScrolledWindow):
             self.tail()
         elif key == wx.WXK_LEFT:
             if self.wp and (not self.playing):
-                if evt.ControlDown():
-                    self.cur_f = self.cur_f - SEEK_CTRL
-                elif evt.ShiftDown():
-                    self.cur_f = self.cur_f - SEEK_SHIFT
-                else:
-                    self.cur_f = self.cur_f - SEEK
-
-                self.wp.cur_f = self.cur_f * self.src_rate / self.rate
+                self.cur_f = self.cur_f - 1
         elif key == wx.WXK_RIGHT:
             if self.wp and (not self.playing):
-                if evt.ControlDown():
-                    self.cur_f = self.cur_f + SEEK_CTRL
-                elif evt.ShiftDown():
-                    self.cur_f = self.cur_f + SEEK_SHIFT
-                else:
-                    self.cur_f = self.cur_f + SEEK
+                self.cur_f = self.cur_f + 1
 
-                self.wp.cur_f = self.cur_f * self.src_rate / self.rate
         if (32 <= key) and (key <= 127):
             ch = chr(key)
             if ch == 'b' or ch == 'B':
                 self.play_border()
             elif ch == 'c' or ch == 'C':
                 self.cut()
-            elif ch == 'i' or ch == 'I':
-                self.insert_label()
-            elif ch == 'l' or ch == 'L':
-                self.merge_left()
-            elif ch == 'r' or ch == 'R':
-                self.merge_right()
             elif ch == 's' or ch == 'S':
                 if evt.ControlDown():
                     self.save()
@@ -911,8 +878,6 @@ class WaveView(wx.ScrolledWindow):
                     self.playsel()
             elif (ch == 'z' or ch == 'Z') and evt.ControlDown():
                 self.undo()
-            elif (ch == 'y' or ch == 'Y') and evt.ControlDown():
-                self.redo()
 
         self.UpdateDrawing()
         wx.PostEvent(self.listener, ChangeCurEvent())
@@ -959,6 +924,8 @@ class WaveView(wx.ScrolledWindow):
                                    self.sampwidth, self.src_rate, rate)
 
             self.rate_changed = True
+            old_pos = self.GetScrollPos(wx.HORIZONTAL)
+            old_range = self.GetScrollRange(wx.HORIZONTAL)
 
             self.SetScrollbars(PPU, 0, math.ceil(float(self.max_f) / PPU), 0)
 
@@ -993,7 +960,7 @@ class WaveView(wx.ScrolledWindow):
     data = property(get_data, set_data)
 
     # sil_lv property
-    _sil_lv = SIL_LV
+    _sil_lv = DEFAULT_SIL_LV
 
     def get_sil_lv(self):
         return self._sil_lv

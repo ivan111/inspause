@@ -197,7 +197,7 @@ class WavePlayer(threading.Thread):
 
         self.playing = True
 
-    def play_border(self, border_s, is_change_start_cur_f=True):
+    def play_border(self, border_s):
         self.pause_mode = True
 
         self.min_f = int((border_s - PB_DUR) * self.framerate)
@@ -205,10 +205,7 @@ class WavePlayer(threading.Thread):
         self.max_f = int((border_s + PB_DUR) * self.framerate)
         self.max_f = min(self.max_f, self.nframes)
         self.cur_f = self.min_f
-        if is_change_start_cur_f:
-            self.start_cur_f = self.cur_f
-        else:
-            self.start_cur_f = int(border_s * self.framerate)
+        self.start_cur_f = self.cur_f
 
         ed_f = int(border_s * self.framerate)
         nframes = int(PB_PAUSE_SEC * self.framerate)
