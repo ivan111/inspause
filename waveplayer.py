@@ -4,7 +4,6 @@ import pyaudio
 import threading
 import time
 import struct
-import sys
 import wx
 
 from labels import LBL_CUT
@@ -49,9 +48,9 @@ class WavePlayer(threading.Thread):
         p = pyaudio.PyAudio()
 
         stream = p.open(format=p.get_format_from_width(self.sampwidth),
-                channels=self.nchannels,
-                rate=self.framerate,
-                output=True)
+                        channels=self.nchannels,
+                        rate=self.framerate,
+                        output=True)
 
         self.pause_f = 0
 
@@ -174,7 +173,7 @@ class WavePlayer(threading.Thread):
 
         self.playing = True
 
-    def play_border(self, border_s):
+    def play_border(self, border_s, is_change_start_cur_f=True):
         self.pause_mode = True
 
         self.min_f = int((border_s - PB_DUR) * self.framerate)
@@ -182,7 +181,10 @@ class WavePlayer(threading.Thread):
         self.max_f = int((border_s + PB_DUR) * self.framerate)
         self.max_f = min(self.max_f, self.nframes)
         self.cur_f = self.min_f
-        self.start_cur_f = self.cur_f
+        if is_change_start_cur_f:
+            self.start_cur_f = self.cur_f
+        else:
+            self.start_cur_f = int(border_s * self.framerate)
 
         ed_f = int(border_s * self.framerate)
         nframes = int(PB_PAUSE_SEC * self.framerate)
