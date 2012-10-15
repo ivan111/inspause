@@ -137,7 +137,7 @@ class InsPause(wx.App):
         self.frame.Connect(-1, -1, EVT_CHANGE_LBL_ID, self.OnChangeLabels)
         self.frame.Connect(-1, -1, EVT_EOF_ID, self.OnEOF)
 
-        dd = DirDrop(self.frame)
+        dd = DirDrop(self)
         self.frame.SetDropTarget(dd)
 
     def InitMenu(self):
@@ -933,7 +933,7 @@ class DirDrop(wx.FileDropTarget):
                 self.window.settings['list_index'] = 0
                 self.window.set_dir(names[0])
             else:
-                self.window.list_index = 0
+                self.window.settings['list_index'] = 0
                 self.window.set_dir(os.path.dirname(names[0]))
 
 
