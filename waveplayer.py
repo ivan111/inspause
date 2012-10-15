@@ -6,7 +6,7 @@ import time
 import struct
 import wx
 
-from labels import LBL_CUT
+from insertpause import FACTOR, ADD
 
 EVT_UPDATE_ID = wx.NewId()
 EVT_EOF_ID = wx.NewId()
@@ -34,6 +34,7 @@ class WavePlayer(threading.Thread):
         threading.Thread.__init__(self)
         self.setDaemon(True)
         self.listener = listener
+
         self.buffer = buffer
         self.nchannels = nchannels
         self.sampwidth = sampwidth
@@ -42,7 +43,16 @@ class WavePlayer(threading.Thread):
         self.min_f = 0
         self.max_f = self.nframes
         self.start_cur_f = 0
+
         self.pause_mode = False
+        self.labels = []
+        self.cur_lbl_pos = 0
+        self.is_in_label = False
+        self.factor = FACTOR
+        self.add = ADD
+
+        self.border_mode = False
+        self.border_f = 0
 
     def run(self):
         p = pyaudio.PyAudio()
@@ -66,22 +76,9 @@ class WavePlayer(threading.Thread):
                     nframes = min(CHUNK, self.pause_f)
                     stream.write(struct.pack('%ds' % nframes, ''))
                     self.pause_f = self.pause_f - nframes
-                elif self.cur_f <= self.max_f:
-                    if self.pause_mode:
-                        # Check Pause Exists
-                        for pause in self.pause_list:
-                            if (self.cur_f <= pause[0]) and \
-                                    (pause[0] < self.cur_f + CHUNK):
-                                self.pause_f = pause[1]
-                                break
 
-                        # Check Cut Exists
-                        for cut in self.cut_list:
-                            if (self.cur_f <= cut[0]) and \
-                                    (cut[0] < self.cur_f + CHUNK):
-                                self.cur_f = min(cut[1], self.max_f)
-                                break
-
+                    self.is_in_label = False
+                elif self.cur_f < self.max_f:
                     # Play
                     wx.PostEvent(self.listener, UpdateEvent(self.cur_f))
                     st = self.cur_f * self.nchannels * self.sampwidth
@@ -89,6 +86,45 @@ class WavePlayer(threading.Thread):
                     ed = min(ed, len(self.buffer))
                     stream.write(self.buffer[st: ed])
                     self.cur_f = self.cur_f + CHUNK
+
+                    # Border Mode
+                    if self.border_mode:
+                        if self.border_f < self.cur_f:
+                            self.pause_f = int(PB_PAUSE_SEC * self.framerate)
+                            self.border_mode = False
+
+                    # Pause Mode
+                    if self.pause_mode:
+                        cur_s = float(self.cur_f) / self.framerate
+
+                        if self.cur_lbl_pos < len(self.labels):
+                            label = self.labels[self.cur_lbl_pos]
+
+                            if not self.is_in_label and label.start < cur_s:
+                                if label.end < cur_s:
+                                    self.cur_lbl_pos += 1
+                                else:
+                                    self.is_in_label = True
+
+                            if self.is_in_label:
+                                if label.is_pause():
+                                    if label.end < cur_s:
+                                        if label.is_spec():
+                                            dur = label.dur
+                                        else:
+                                            dur = label.dur * self.factor + self.add
+                                        self.pause_f = int(dur * self.framerate)
+                                        self.pause_f = max(0, min(self.pause_f, self.nframes))
+
+                                        self.cur_lbl_pos += 1
+
+                                elif label.is_cut():
+                                    end_f = int(label.end * self.framerate)
+                                    self.cur_f = max(0, min(end_f, self.nframes))
+                                    self.cur_lbl_pos += 1
+
+                                else:
+                                    self.cur_lbl_pos += 1
                 else:
                     # EOF
                     self.playing = False
@@ -107,8 +143,40 @@ class WavePlayer(threading.Thread):
 
     _cancel = False
 
+    def seek(self, labels, pos):
+        self.labels = labels
+        self.cur_f = pos
+
+        self.search_label_pos()
+
+    def search_label_pos(self):
+        cur_s = float(self.cur_f) / self.framerate
+
+        self.pause_f = 0
+        self.is_in_label = False
+
+        i = 0
+        for label in self.labels:
+            if label.is_pause():
+                if cur_s < label.end:
+                    if label.start <= cur_s:
+                        self.is_in_label = True
+                    break
+            elif label.is_cut():
+                if label.start < cur_s and cur_s < label.end:
+                    self.is_in_label = True
+                    break
+
+                if cur_s < label.start:
+                    break
+
+            i += 1
+
+        self.cur_lbl_pos = i
+
     def play(self):
         self.pause_mode = False
+        self.border_mode = False
 
         self.min_f = 0
         self.max_f = self.nframes
@@ -124,34 +192,21 @@ class WavePlayer(threading.Thread):
 
     def pause_mode_play(self, labels, factor, add):
         self.pause_mode = True
+        self.border_mode = False
 
         self.min_f = 0
         self.max_f = self.nframes
         self.start_cur_f = self.cur_f
 
-        pause_list = []
-        cut_list = []
-
-        for label in labels:
-            st_f = int(label.start * self.framerate)
-            ed_f = int(label.end * self.framerate)
-
-            if label.label == LBL_CUT:
-                cut_list.append([st_f, ed_f])
-            else:
-                nframes = ed_f - st_f
-                nframes = int((nframes * factor) + (add * self.framerate))
-                nframes = nframes * self.nchannels * self.sampwidth
-
-                pause_list.append([ed_f, nframes])
-
-        self.pause_list = pause_list
-        self.cut_list = cut_list
+        self.labels = labels
+        self.factor = factor
+        self.add = add
 
         self.playing = True
 
     def play_label(self, label):
         self.pause_mode = False
+        self.border_mode = False
 
         self.min_f = int(label.start * self.framerate)
         self.max_f = int(label.end * self.framerate)
@@ -174,7 +229,8 @@ class WavePlayer(threading.Thread):
         self.playing = True
 
     def play_border(self, border_s, is_change_start_cur_f=True):
-        self.pause_mode = True
+        self.pause_mode = False
+        self.border_mode = True
 
         self.min_f = int((border_s - PB_DUR) * self.framerate)
         self.min_f = max(0, self.min_f)
@@ -186,10 +242,7 @@ class WavePlayer(threading.Thread):
         else:
             self.start_cur_f = int(border_s * self.framerate)
 
-        ed_f = int(border_s * self.framerate)
-        nframes = int(PB_PAUSE_SEC * self.framerate)
-        self.pause_list = [[ed_f, nframes]]
-        self.cut_list = []
+        self.border_f = int(border_s * self.framerate)
 
         self.playing = True
 
@@ -207,7 +260,7 @@ class WavePlayer(threading.Thread):
         return self._cur_f
 
     def set_cur_f(self, cur_f):
-        self._cur_f = int(cur_f)
+        self._cur_f = max(0, min(int(cur_f), self.nframes))
 
     cur_f = property(get_cur_f, set_cur_f)
 

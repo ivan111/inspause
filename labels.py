@@ -5,6 +5,7 @@ import re
 MIN_DUR = 0.1  # ラベルの最小長さ
 LBL_PAUSE = 'p'  # ポーズ挿入ラベル
 LBL_CUT = 'x'  # 選択範囲カットラベル
+LBL_SPEC = 's' # 指定した秒数ポーズ挿入ラベル
 
 NEAR_SEC = 0.1  # 近い隣接範囲を同時に動かすときに使用
 
@@ -12,33 +13,100 @@ NEAR_SEC = 0.1  # 近い隣接範囲を同時に動かすときに使用
 class Label(object):
     def __init__(self, start, end, label=LBL_PAUSE):
         self.validate_time(start, end)
-        self.validate_label(label)
 
         self._start = start
         self._end = end
-        self._label = label
+
+        if label is None:
+            self._label = ''
+        else:
+            self._label = label
+
+        self.set_flag()
+
+        if self._is_spec:
+            try:
+                f = float(label[1:])
+            except:
+                f = -1
+
+            if f < 0:
+                self._is_spec = false
+                self._dur = self._end - self._start
+            else:
+                self._dur = f
+        else:
+            self._dur = self._end - self._start
+
+    def change_to_pause(self):
+        if self._is_pause and not self._is_spec:
+            return
+
+        self._dur = self._end - self._start
+        self.label = LBL_PAUSE
+
+    def change_to_cut(self):
+        if self._is_cut:
+            return
+
+        self._dur = self._end - self._start
+        self.label = LBL_CUT
+
+    def change_to_spec(self, factor, add):
+        if self._is_spec:
+            return
+
+        dur = self._end - self._start
+        self._dur = dur * factor + add
+
+        self.label = '%s%.6f' % (LBL_SPEC, self._dur)
 
     def __str__(self):
         return '%.6f\t%.6f\t%s' % (self._start, self._end, self._label)
+
+    def set_flag(self):
+        if self._label == LBL_PAUSE:
+            self._is_pause = True
+            self._is_cut = False
+            self._is_spec = False
+        elif self._label == LBL_CUT:
+            self._is_pause = False
+            self._is_cut = True
+            self._is_spec = False
+        elif self._label.startswith('s'):
+            self._is_pause = True
+            self._is_cut = False
+            self._is_spec = True
+        else:
+            self._is_pause = False
+            self._is_cut = False
+            self._is_spec = False
+
+    def is_pause(self):
+        return self._is_pause
+
+    def is_cut(self):
+        return self._is_cut
+
+    def is_spec(self):
+        return self._is_spec
+
+    def shift(self, val):
+        self._start = self._start + val
+        self._end = self._end + val
 
     def validate_time(self, start, end):
         if start > end:
             raise Exception('[Label] Error: start(%d) > end(%d)' %
                             (start, end))
-        #elif end - start < MIN_DUR:
-        #    raise Exception('[Label] Error: start(%d) - end(%d) < MIN_DUR(%d)'
-        #                    % (start, end, MIN_DUR))
-
-    def validate_label(self, label):
-        if (label != LBL_PAUSE) and (label != LBL_CUT):
-            raise Exception('[Label] Error: "%s" is not support label' %
-                            label)
 
     def get_start(self):
         return self._start
 
     def set_start(self, start):
         self._start = max(0, min(start, self._end - MIN_DUR))
+        if not self._is_spec:
+            self._dur = self._end - self._start
 
     start = property(get_start, set_start)
 
@@ -47,6 +115,8 @@ class Label(object):
 
     def set_end(self, end):
         self._end = max(self._start + MIN_DUR, end)
+        if not self._is_spec:
+            self._dur = self._end - self._start
 
     end = property(get_end, set_end)
 
@@ -54,11 +124,19 @@ class Label(object):
         return self._label
 
     def set_label(self, label):
-        self.validate_label(label)
-        self._label = label
+        if label is None:
+            self._label = ''
+        else:
+            self._label = label
+
+        self.set_flag()
 
     label = property(get_label, set_label)
 
+    def get_dur(self):
+        return self._dur
+
+    dur = property(get_dur)
 
 class Labels(list):
     def __init__(self, lines=None):
@@ -128,6 +206,18 @@ class Labels(list):
                     i = 0
                 self.selected = found_labels[i]
 
+    def select_by_index(self, pos):
+        if pos < 0 or len(self) <= pos:
+            return
+
+        self.selected = self[pos]
+
+    def get_selected_index(self):
+        if self.selected is None:
+            return 0
+
+        return self.index(self.selected)
+
     def insert_label(self, pos, dur, max_s):
         if (pos < 0) or (max_s < pos):
             return
@@ -180,6 +270,10 @@ class Labels(list):
             return True
         else:
             return False
+
+    def shift(self, val):
+        for label in self:
+            label.shift(val)
 
     def remove_sel(self):
         if not self.selected:

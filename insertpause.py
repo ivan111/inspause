@@ -3,7 +3,7 @@
 import struct
 import wave
 
-from labels import Labels, LBL_CUT
+from labels import Labels
 
 FACTOR = 1.2
 ADD = 0.5
@@ -26,7 +26,7 @@ def insert_pause(in_fname, out_fname, pause_fname,
         st_f = int(label.start * in_wf.getframerate())
         ed_f = int(label.end * in_wf.getframerate())
 
-        if label.label == LBL_CUT:
+        if label.is_cut():
             # write sound
             s_nframes = st_f - prev_ed_f
             s_nframes = max(0, min(s_nframes, rest_nframes))
@@ -47,9 +47,12 @@ def insert_pause(in_fname, out_fname, pause_fname,
             rest_nframes = rest_nframes - s_nframes
 
             # insert pause
-            p_nframes = ed_f - st_f
-            p_nframes = p_nframes * factor
-            p_nframes = int(p_nframes + (add * in_wf.getframerate()))
+            if label.is_spec():
+                p_nframes = int(label.get_dur() * in_wf.getframerate())
+            else:
+                p_nframes = ed_f - st_f
+                p_nframes = p_nframes * factor
+                p_nframes = int(p_nframes + (add * in_wf.getframerate()))
             p_nframes = p_nframes * in_wf.getnchannels() * in_wf.getsampwidth()
 
             out_wf.writeframes(struct.pack('%ds' % p_nframes, ''))

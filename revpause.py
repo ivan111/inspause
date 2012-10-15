@@ -71,16 +71,17 @@ def rev_pause(normal, paused, sil_lv=SIL_LV, sil_dur=SIL_DUR, rate=RATE,
                 end = start + (label.end - label.start) + \
                     label_before_dur + new_label_after_dur
                 end = max(0, min(end, max_s))
+                lbl = 'p'
             else:
-                end = (float(start_f) / rate) + (label.end - label.start)
-                end = end + new_label_after_dur
-                end = max(0, min(end, max_s))
-
-                start = end - new_label_after_dur - sil_s - \
-                    label_before_dur
+                start = (float(start_f) / rate) - label_before_dur
                 start = max(0, min(start, max_s))
 
-            labels.append(Label(start, end))
+                end = (float(start_f) / rate) + (label.end - label.start)
+                end = max(0, min(end, max_s))
+
+                lbl = 's' + str(sil_s)
+
+            labels.append(Label(start, end, lbl))
 
             if DEBUG:
                 fmt = 'score: %4.0f, time: %6.2f - %6.2f, dur: %4.1f' + \
@@ -96,8 +97,7 @@ def rev_pause(normal, paused, sil_lv=SIL_LV, sil_dur=SIL_DUR, rate=RATE,
             print '[rev_pause] *** ERROR ***'
         err = True
 
-    if fit_mode:
-        labels.subtract()
+    labels.subtract()
 
     return (labels, err)
 

@@ -16,6 +16,8 @@ DEBUG = False
 
 USE_BUFFERED_DC = True
 EVT_CHANGE_CUR_ID = wx.NewId()
+EVT_CHANGE_SEL_ID = wx.NewId()
+EVT_CHANGE_LBL_ID = wx.NewId()
 WAV_TOP = 30
 ARROW_SIZE = 5
 MIN_RATE = 12
@@ -42,31 +44,15 @@ class ChangeCurEvent(wx.PyEvent):
         self.SetEventType(EVT_CHANGE_CUR_ID)
 
 
-class MyPopupMenu(wx.Menu):
-    def __init__(self, parent):
-        super(MyPopupMenu, self).__init__()
+class ChangeSelectedLabelEvent(wx.PyEvent):
+    def __init__(self):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_CHANGE_SEL_ID)
 
-        self.parent = parent
-        label = parent.ml().selected
-
-        if label.label == LBL_PAUSE:
-            cmi = wx.MenuItem(self, ID_CUT, u'ポーズ音声作成時に選択範囲をカット')
-            self.AppendItem(cmi)
-            self.Bind(wx.EVT_MENU, self.OnCut, cmi)
-        elif label.label == LBL_CUT:
-            pmi = wx.MenuItem(self, ID_PAUSE, u'ポーズ音声作成時に選択範囲をポーズ挿入')
-            self.AppendItem(pmi)
-            self.Bind(wx.EVT_MENU, self.OnPause, pmi)
-
-    def OnPause(self, e):
-        self.parent.ml.save()
-        self.parent.ml().selected.label = LBL_PAUSE
-        self.parent.UpdateDrawing()
-
-    def OnCut(self, e):
-        self.parent.ml.save()
-        self.parent.ml().selected.label = LBL_CUT
-        self.parent.UpdateDrawing()
+class ChangeLabelsEvent(wx.PyEvent):
+    def __init__(self):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_CHANGE_LBL_ID)
 
 
 # http://wiki.wxpython.org/DoubleBufferedDrawing
@@ -89,6 +75,9 @@ class WaveView(wx.ScrolledWindow):
         self.drag_handle = NO_HANDLE
         self.draw_handle_active = None
         self.drag_scroll = False
+        self._seek = SEEK
+        self._seek_ctrl = SEEK_CTRL
+        self._seek_shift = SEEK_SHIFT
 
         al = ARROW_SIZE
         self.down_arrow = ((al, 0), (0, al * math.sqrt(3)), (-al, 0))
@@ -150,11 +139,40 @@ class WaveView(wx.ScrolledWindow):
 
         return True
 
+    def get_labels(self):
+        if self.ml is None:
+            return []
+
+        return self.ml()
+
     def set_labels(self, labels_file):
         self.labels_file = labels_file
         labels = Labels(open(labels_file, 'r').readlines())
         self.ml = MyLabels(labels)
         self.UpdateDrawing()
+
+    def get_selected_label(self):
+        if self.ml is None:
+            return 0
+
+        return self.ml().get_selected_index()
+
+    def set_selected_label(self, index):
+        if self.ml is None:
+            return
+
+        self.ml().select_by_index(index)
+
+        if not self.wp.playing and self.ml().selected is not None:
+            self.cur_f = int(self.ml().selected.start * self.rate)
+            self.left_f = self.cur_f - 50
+
+        self.UpdateDrawing()
+
+    def set_seek(self, seek, seek_ctrl, seek_shift):
+        self._seek = seek
+        self._seek_ctrl = seek_ctrl
+        self._seek_shift = seek_shift
 
     def UpdateDrawing(self):
         dc = wx.MemoryDC()
@@ -412,6 +430,7 @@ class WaveView(wx.ScrolledWindow):
         else:
             self.ml.save()
             self.ml.set_labels(labels)
+            wx.PostEvent(self.listener, ChangeLabelsEvent())
 
         self.UpdateDrawing()
 
@@ -420,7 +439,7 @@ class WaveView(wx.ScrolledWindow):
             return
 
         self.cur_f = 0
-        self.wp.cur_f = 0
+        self.wp.seek(self.ml(), 0)
         self.left_f = 0
         self.UpdateDrawing()
 
@@ -504,8 +523,11 @@ class WaveView(wx.ScrolledWindow):
         if not self.can_tail():
             return
 
+        if self.wp.playing:
+            self.wp.playing = False
+
         self.cur_f = self.max_f
-        self.wp.cur_f = self.nframes
+        self.wp.seek(self.ml(), self.nframes)
         self.left_f = self.max_f
         self.UpdateDrawing()
 
@@ -546,6 +568,7 @@ class WaveView(wx.ScrolledWindow):
         self.ml.save()
         self.ml().insert_label(self.cur_s, INSERT_DUR, self.max_s)
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_insert_label(self):
         if (self.ml is None) or self.playing:
@@ -560,6 +583,7 @@ class WaveView(wx.ScrolledWindow):
         self.ml.save()
         self.ml().remove_sel()
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_remove_label(self):
         if (self.ml is None) or self.playing or self.ml().selected is None:
@@ -574,6 +598,7 @@ class WaveView(wx.ScrolledWindow):
         self.ml.save()
         self.ml().cut(self.cur_s)
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_cut(self):
         if (self.ml is None) or self.playing:
@@ -588,6 +613,7 @@ class WaveView(wx.ScrolledWindow):
         self.ml.save()
         self.ml().merge_left()
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_merge_left(self):
         if (self.ml is None) or self.playing:
@@ -602,6 +628,7 @@ class WaveView(wx.ScrolledWindow):
         self.ml.save()
         self.ml().merge_right()
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_merge_right(self):
         if (self.ml is None) or self.playing:
@@ -615,6 +642,7 @@ class WaveView(wx.ScrolledWindow):
 
         self.ml.undo()
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_undo(self):
         if (self.ml is None) or self.playing:
@@ -628,6 +656,7 @@ class WaveView(wx.ScrolledWindow):
 
         self.ml.redo()
         self.UpdateDrawing()
+        wx.PostEvent(self.listener, ChangeLabelsEvent())
 
     def can_redo(self):
         if (self.ml is None) or self.playing:
@@ -718,7 +747,7 @@ class WaveView(wx.ScrolledWindow):
             # If top area is clicked, move that point.
             src_f = cur_f * self.src_rate / self.rate
             self.cur_f = cur_f
-            self.wp.cur_f = src_f
+            self.wp.seek(self.ml(), src_f)
             self.wp.pause_f = 0
             wx.PostEvent(self.listener, ChangeCurEvent())
             drag_scroll = False
@@ -741,7 +770,7 @@ class WaveView(wx.ScrolledWindow):
                     if self.rate != 0:
                         cur_s = float(cur_f) / self.rate
                         self.ml().select(cur_s)
-                        wx.PostEvent(self.listener, ChangeCurEvent())
+                        wx.PostEvent(self.listener, ChangeSelectedLabelEvent())
 
         if drag_scroll and (not self.playing):
             self.drag_scroll = evt.X
@@ -780,6 +809,7 @@ class WaveView(wx.ScrolledWindow):
         if self.drag_handle != NO_HANDLE:
             self.ReleaseMouse()
             wx.PostEvent(self.listener, ChangeCurEvent())
+            wx.PostEvent(self.listener, ChangeLabelsEvent())
         self.drag_handle = NO_HANDLE
 
         if self.drag_scroll:
@@ -791,12 +821,6 @@ class WaveView(wx.ScrolledWindow):
             self.ml.restore()
             self.drag_handle = NO_HANDLE
             self.UpdateDrawing()
-        else:
-            sel = self.ml().selected
-            if sel:
-                overlapped = self.ml().get_overlapped(sel)
-                if len(overlapped) == 0:
-                    self.PopupMenu(MyPopupMenu(self), evt.GetPosition())
 
     def OnMotion(self, evt):
         if self.wp is None:
@@ -875,23 +899,23 @@ class WaveView(wx.ScrolledWindow):
         elif key == wx.WXK_LEFT:
             if self.wp and (not self.playing):
                 if evt.ControlDown():
-                    self.cur_f = self.cur_f - SEEK_CTRL
+                    self.cur_f = self.cur_f - self._seek_ctrl
                 elif evt.ShiftDown():
-                    self.cur_f = self.cur_f - SEEK_SHIFT
+                    self.cur_f = self.cur_f - self._seek_shift
                 else:
-                    self.cur_f = self.cur_f - SEEK
+                    self.cur_f = self.cur_f - self._seek
 
-                self.wp.cur_f = self.cur_f * self.src_rate / self.rate
+                self.wp.seek(self.cur_f * self.src_rate / self.rate)
         elif key == wx.WXK_RIGHT:
             if self.wp and (not self.playing):
                 if evt.ControlDown():
-                    self.cur_f = self.cur_f + SEEK_CTRL
+                    self.cur_f = self.cur_f + self._seek_ctrl
                 elif evt.ShiftDown():
-                    self.cur_f = self.cur_f + SEEK_SHIFT
+                    self.cur_f = self.cur_f + self._seek_shift
                 else:
-                    self.cur_f = self.cur_f + SEEK
+                    self.cur_f = self.cur_f + self._seek
 
-                self.wp.cur_f = self.cur_f * self.src_rate / self.rate
+                self.wp.seek(self.ml(), self.cur_f * self.src_rate / self.rate)
         if (32 <= key) and (key <= 127):
             ch = chr(key)
             if ch == 'b' or ch == 'B':
