@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 
-import pyaudio
 import threading
 import time
 import struct
+
+import pyaudio
 import wx
 
 from insertpause import FACTOR, ADD

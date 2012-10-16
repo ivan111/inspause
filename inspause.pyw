@@ -60,6 +60,11 @@ COL_TYPE = 2
 COL_DUR = 3
 COL_TEXT = 4
 
+if sys.platform == 'win32':
+    ext_list = ['.wav', '.mp3']
+else:
+    ext_list = ['.wav']
+ 
 try:
     dirName = os.path.dirname(os.path.abspath(__file__))
 except:
@@ -263,8 +268,10 @@ class InsPause(wx.App):
         wav_files = []
 
         for name in os.listdir(dir_name):
-            if name.endswith('.wav'):
-                wav_files.append(name)
+            for ext in ext_list:
+                if name.lower().endswith(ext):
+                    wav_files.append(name)
+                    break
 
         if len(wav_files) == 0:
             self.settings['list_index'] = 0
@@ -292,8 +299,6 @@ class InsPause(wx.App):
 
         labels_name = self.list.GetItem(list_index, 1).GetText()
         labels_file = os.path.join(dir_name, LABELS_DIR, labels_name)
-
-        self.set_sound(wav_file, labels_file)
 
     def set_sound(self, wav_file, labels_file):
         if not self.view.set_sound(wav_file):
@@ -655,8 +660,10 @@ class InsPause(wx.App):
             not_found = True
         else:
             for name in os.listdir(rev_dir):
-                if name.endswith('.wav'):
-                    rev_names.append(name)
+                for ext in ext_list:
+                    if name.lower().endswith(ext):
+                        rev_names.append(name)
+                        break
             rev_names.sort()
 
             if len(rev_names) == 0:
@@ -820,6 +827,9 @@ class InsPause(wx.App):
             wav_file = os.path.join(dir_name, wav)
             labels_file = os.path.join(dir_name, LABELS_DIR, labels)
             pause_file = os.path.join(dir_name, PAUSE_DIR, wav)
+
+            if pause_file.lower().endswith('.mp3'):
+                pause_file = pause_file[:-3] + 'wav'
 
             if not os.path.exists(labels_file):
                 labels = find_sound(wav_file, sil_lv, sil_dur,

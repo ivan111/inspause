@@ -4,6 +4,7 @@ import audioop
 import wave
 
 from labels import Label, Labels
+import mp3
 
 WAV_SCALE = 10
 SIL_LV = 50
@@ -26,14 +27,25 @@ def find_sound(in_fname, sil_lv=SIL_LV, sil_dur=SIL_DUR,
     if (sil_lv < 0) or (100 < sil_lv):
         raise Exception('[find_sound] Error: sil_lv < 0 or 100 < sil_lv')
 
-    wf = wave.open(in_fname, 'r')
+    if in_fname.lower().endswith('mp3'):
+        buffer, src_rate = mp3.readframesmono(in_fname)
+        width = 2
+        nframes = len(buffer) / 2
+    else:
+        wf = wave.open(in_fname, 'r')
 
-    buffer = wf.readframes(wf.getnframes())
-    if wf.getnchannels() == 2:
-        buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
-    data = rms_ratecv(buffer, 1, wf.getsampwidth(), wf.getframerate(), rate)
-    max_s = float(wf.getnframes()) / wf.getframerate()
-    wf.close()
+        buffer = wf.readframes(wf.getnframes())
+        src_rate = wf.getframerate()
+        width = wf.getsampwidth()
+        nframes = wf.getnframes()
+
+        if wf.getnchannels() == 2:
+            buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
+
+        wf.close()
+
+    data = rms_ratecv(buffer, 1, width, src_rate, rate)
+    max_s = float(nframes) / src_rate
 
     max_val = max(data) / wav_scale
     # silence threshold level
@@ -94,14 +106,6 @@ def find_sound(in_fname, sil_lv=SIL_LV, sil_dur=SIL_DUR,
     labels.subtract()
 
     return labels
-
-
-def print_wav_info(wf):
-    print "nchannels:", wf.getnchannels()
-    print "sample width:", wf.getsampwidth()
-    print "framerate:", wf.getframerate()
-    print "nframes:", wf.getnframes()
-    print "dur(sec):", float(wf.getnframes()) / wf.getframerate()
 
 
 def rms_ratecv(fragment, nchannels, width, src_rate, dst_rate):

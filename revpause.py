@@ -6,6 +6,7 @@ import wave
 from findsound import find_sound, rms_ratecv, get_sil_f
 from findsound import SND_DUR, LABEL_BEFORE_DUR, LABEL_AFTER_DUR
 from labels import Label, Labels
+import mp3
 
 DEBUG = False
 
@@ -103,11 +104,18 @@ def rev_pause(normal, paused, sil_lv=SIL_LV, sil_dur=SIL_DUR, rate=RATE,
 
 
 def get_data(name, rate):
-    wf = wave.open(name, 'r')
-    buffer = wf.readframes(wf.getnframes())
-    if wf.getnchannels() == 2:
-        buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
-    data = rms_ratecv(buffer, 1, wf.getsampwidth(), wf.getframerate(), rate)
+    if name.lower().endswith('mp3'):
+        buffer, src_rate = mp3.readframesmono(name)
+        width = 2
+    else:
+        wf = wave.open(name, 'r')
+        buffer = wf.readframes(wf.getnframes())
+        width = wf.getsampwidth()
+        src_rate = wf.getframerate()
+        if wf.getnchannels() == 2:
+            buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
+
+    data = rms_ratecv(buffer, 1, width, src_rate, rate)
 
     return data
 

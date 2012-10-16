@@ -10,6 +10,7 @@ import wx
 
 from findsound import find_sound, rms_ratecv, WAV_SCALE, SIL_LV
 from labels import Labels, LBL_PAUSE, LBL_CUT
+import mp3
 from waveplayer import WavePlayer, EVT_UPDATE_ID, EVT_EOF_ID, EOFEvent
 
 DEBUG = False
@@ -104,24 +105,33 @@ class WaveView(wx.ScrolledWindow):
         if not os.path.exists(wav_file):
             return False
 
-        wf = wave.open(wav_file, 'r')
-        buffer = wf.readframes(wf.getnframes())
-
         self.wav_file = wav_file
-        self.nchannels = 1  # if nchannels == 2, convert it to mono
-        self.sampwidth = wf.getsampwidth()
-        self.src_rate = wf.getframerate()
-        self.nframes = len(buffer) / (self.nchannels * self.sampwidth)
 
-        if wf.getsampwidth() != 2:
-            wx.MessageBox(u'サンプルサイズは16ビットでないといけません。' +
-                          u'（このファイル：%dビット）' %
-                          (wf.getsampwidth() * 8))
-            return False
+        if wav_file.lower().endswith('mp3'):
+            buffer, rate = mp3.readframesmono(wav_file)
+            self.buffer = buffer
+            self.nchannels = 1
+            self.sampwidth = 2
+            self.src_rate = rate
+            self.nframes = len(buffer) / 2
+        else:
+            wf = wave.open(wav_file, 'r')
+            buffer = wf.readframes(wf.getnframes())
 
-        if wf.getnchannels() == 2:
-            buffer = audioop.tomono(buffer, self.sampwidth, 0.5, 0.5)
-        self.buffer = buffer
+            self.nchannels = 1  # if nchannels == 2, convert it to mono
+            self.sampwidth = wf.getsampwidth()
+            self.src_rate = wf.getframerate()
+            self.nframes = len(buffer) / (self.nchannels * self.sampwidth)
+
+            if wf.getsampwidth() != 2:
+                wx.MessageBox(u'サンプルサイズは16ビットでないといけません。' +
+                              u'（このファイル：%dビット）' %
+                              (wf.getsampwidth() * 8))
+                return False
+
+            if wf.getnchannels() == 2:
+                buffer = audioop.tomono(buffer, self.sampwidth, 0.5, 0.5)
+            self.buffer = buffer
 
         self.rate = RATE
 

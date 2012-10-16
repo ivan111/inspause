@@ -1,0 +1,9 @@
+EXPORTS
+
+;
+openFile @1
+closeFile @2
+readFrames @3
+readFramesMono @4
+getSamplerate @5
+getNumChannels @6
