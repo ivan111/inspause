@@ -114,6 +114,7 @@ class WavePlayer(threading.Thread):
                                             dur = label.dur
                                         else:
                                             dur = label.dur * self.factor + self.add
+                                        dur = dur * self.nchannels * self.sampwidth
                                         self.pause_f = int(dur * self.framerate)
                                         self.pause_f = max(0, min(self.pause_f, self.nframes))
 
