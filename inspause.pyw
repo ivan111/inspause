@@ -27,7 +27,7 @@ from wx import xrc
 
 import persist
 
-from findsound import find_sound
+from findsound import find_sound, find_sound_d
 from insertpause import insert_pause
 from labels import Labels
 import revpause
@@ -305,17 +305,12 @@ class InsPause(wx.App):
             return
 
         if not os.path.exists(labels_file):
-            sil_lv = self.settings['sil_lv']
-            sil_dur = self.settings['sil_dur']
-            before_dur = self.settings['label_before_dur']
-            after_dur = self.settings['label_after_dur']
-            rate = self.settings['rate']
-            snd_dur = self.settings['snd_dur']
-
-            labels = find_sound(wav_file, sil_lv, sil_dur, before_dur, after_dur, rate, snd_dur)
+            self.OnRefind(None)
+            labels = self.view.get_labels()
             labels.write(labels_file)
+        else:
+            self.view.set_labels(labels_file)
 
-        self.view.set_labels(labels_file)
         self.view.sil_lv = self.settings['sil_lv']
 
         wav_name = os.path.basename(wav_file)

@@ -28,23 +28,32 @@ def find_sound(in_fname, sil_lv=SIL_LV, sil_dur=SIL_DUR,
         raise Exception('[find_sound] Error: sil_lv < 0 or 100 < sil_lv')
 
     if in_fname.lower().endswith('mp3'):
-        buffer, src_rate = mp3.readframesmono(in_fname)
+        buffer, ch, src_rate = mp3.readallframes(in_fname)
         width = 2
-        nframes = len(buffer) / 2
     else:
         wf = wave.open(in_fname, 'r')
 
         buffer = wf.readframes(wf.getnframes())
+        ch = wf.getnchannels()
         src_rate = wf.getframerate()
         width = wf.getsampwidth()
-        nframes = wf.getnframes()
-
-        if wf.getnchannels() == 2:
-            buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
 
         wf.close()
 
-    data = rms_ratecv(buffer, 1, width, src_rate, rate)
+    if ch == 2:
+        buffer = audioop.tomono(buffer, width, 0.5, 0.5)
+        ch = 1
+
+    return find_sound_d(buffer, ch, width, src_rate, sil_lv, sil_dur,
+            label_before_dur, label_after_dur, rate, snd_dur, wav_scale)
+
+
+def find_sound_d(buffer, ch, width, src_rate, sil_lv=SIL_LV, sil_dur=SIL_DUR,
+        label_before_dur=LABEL_BEFORE_DUR, label_after_dur=LABEL_AFTER_DUR,
+        rate=RATE, snd_dur=SND_DUR, wav_scale=WAV_SCALE):
+
+    data = rms_ratecv(buffer, ch, width, src_rate, rate)
+    nframes = len(buffer) / (ch * width)
     max_s = float(nframes) / src_rate
 
     max_val = max(data) / wav_scale
@@ -134,6 +143,68 @@ def get_sil_f(data, start_f, thres, max_f=None):
         else:
             break
     return sil_c
+
+
+# 音(snd_dur以上の長さ)に挟まれた無音(max_sil_dur以下の長さ)の中から最小値の位置を候補リストとして返す
+def find_candidate_pos(buffer, ch, width, src_rate):
+
+    max_sil_dur = 0.3
+    rate = 384
+    sil_lv = 50
+    wav_scale = 10
+
+    data = rms_ratecv(buffer, ch, width, src_rate, rate)
+
+    max_val = max(data) / wav_scale
+    # silence threshold level
+    thres = sil_lv * max_val / 100
+    # Convert the silence duration in seconds to a length in samples
+    max_sil_length = max_sil_dur * rate
+    sil_c = 0  # silence counter
+    snd_c = 0
+    sil_start = -1
+    snd_start = -1
+    snd_search = True  # True if we're looking for the start of a sound
+
+    candidate = []
+
+    for n, v in enumerate(data):
+        if v <= thres:
+            sil_c = sil_c + 1
+
+            if sil_start == -1:
+                sil_start = n
+            elif (not snd_search) and (snd_start != -1):
+                snd_search = True
+                snd_c = 0
+        else:
+            snd_c = snd_c + 1
+
+            if snd_search:
+                if sil_start != -1 and sil_c < max_sil_length:
+                    if sil_start != 0:
+                        pos = get_min_pos(data, sil_start, n)
+                        pos_s = float(pos) / rate
+                        candidate += [pos_s]
+
+                snd_search = False
+                snd_start = n
+
+            sil_c = 0
+            sil_start = -1
+
+    return candidate
+
+
+def get_min_pos(data, start, end):
+    min_p = start
+    min_v = data[start]
+    for i in range(start, end):
+        if data[i] < min_v:
+            min_p = i
+            min_v = data[i]
+
+    return min_p
 
 
 if __name__ == '__main__':

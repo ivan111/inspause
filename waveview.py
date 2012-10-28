@@ -8,7 +8,7 @@ import wave
 
 import wx
 
-from findsound import find_sound, rms_ratecv, WAV_SCALE, SIL_LV
+from findsound import find_sound_d, rms_ratecv, WAV_SCALE, SIL_LV, find_candidate_pos
 from labels import Labels, LBL_PAUSE, LBL_CUT
 import mp3
 from waveplayer import WavePlayer, EVT_UPDATE_ID, EVT_EOF_ID, EOFEvent
@@ -20,6 +20,7 @@ EVT_CHANGE_CUR_ID = wx.NewId()
 EVT_CHANGE_SEL_ID = wx.NewId()
 EVT_CHANGE_LBL_ID = wx.NewId()
 WAV_TOP = 30
+CANDIDATE_H = 30
 ARROW_SIZE = 5
 MIN_RATE = 12
 MAX_RATE = 384
@@ -34,6 +35,8 @@ RIGHT_HANDLE = 2
 SEEK = 1
 SEEK_CTRL = 100
 SEEK_SHIFT = 25
+
+CANDIDATE_CLICK_RANGE = 30
 
 ID_PAUSE = wx.NewId()
 ID_CUT = wx.NewId()
@@ -72,6 +75,8 @@ class WaveView(wx.ScrolledWindow):
         self.rate_changed = False
         self.wp = None
         self.ml = None
+        self.candidate_s = []
+        self.candidate_f = []
         self.labels_file = None
         self.drag_handle = NO_HANDLE
         self.draw_handle_active = None
@@ -108,20 +113,20 @@ class WaveView(wx.ScrolledWindow):
         self.wav_file = wav_file
 
         if wav_file.lower().endswith('mp3'):
-            buffer, rate = mp3.readframesmono(wav_file)
-            self.buffer = buffer
-            self.nchannels = 1
+            buffer, ch, rate = mp3.readallframes(wav_file)
+
+            self.nchannels = ch
             self.sampwidth = 2
             self.src_rate = rate
-            self.nframes = len(buffer) / 2
+            self.nframes = len(buffer) / (self.nchannels * self.sampwidth)
         else:
             wf = wave.open(wav_file, 'r')
             buffer = wf.readframes(wf.getnframes())
 
-            self.nchannels = 1  # if nchannels == 2, convert it to mono
+            self.nchannels = wf.getnchannels()
             self.sampwidth = wf.getsampwidth()
             self.src_rate = wf.getframerate()
-            self.nframes = len(buffer) / (self.nchannels * self.sampwidth)
+            self.nframes = wf.getnframes()
 
             if wf.getsampwidth() != 2:
                 wx.MessageBox(u'サンプルサイズは16ビットでないといけません。' +
@@ -129,9 +134,13 @@ class WaveView(wx.ScrolledWindow):
                               (wf.getsampwidth() * 8))
                 return False
 
-            if wf.getnchannels() == 2:
-                buffer = audioop.tomono(buffer, self.sampwidth, 0.5, 0.5)
-            self.buffer = buffer
+        if self.nchannels == 2:
+            buffer = audioop.tomono(buffer, self.sampwidth, 0.5, 0.5)
+            self.nchannels = 1
+        self.buffer = buffer
+
+        self.candidate_s = find_candidate_pos(buffer, self.nchannels,
+                self.sampwidth, self.src_rate)
 
         self.rate = RATE
 
@@ -206,13 +215,12 @@ class WaveView(wx.ScrolledWindow):
             self._draw_labels(dc)
             self._draw_handle_active(dc)
             self._draw_top_line(dc)
+            self._draw_candidate(dc)
             self._draw_out_of_area(dc)
             self._draw_playing_position(dc)
             self._draw_focus(dc)
 
         if DEBUG:
-            # Left Frame
-            # Scroll Pos
             dc.SetPen(wx.BLACK_PEN)
             dc.DrawText('%d' % self.left_f, 0, 0)
             dc.DrawText('%d' % self.GetScrollPos(wx.HORIZONTAL), 0, 15)
@@ -233,19 +241,23 @@ class WaveView(wx.ScrolledWindow):
             f = self.left_f + x
             if self.max_f < f:
                 break
-            vol = (h - WAV_TOP) * float(self.data[f]) / self.max_val
-            vol = min(vol, h - WAV_TOP)
-            dc.DrawLine(x, h, x, h - vol)
+            max_h = h - WAV_TOP - CANDIDATE_H
+            vol = max_h * float(self.data[f]) / self.max_val
+            vol = min(vol, max_h)
+            bottom_y = h - CANDIDATE_H
+            dc.DrawLine(x, bottom_y, x, bottom_y - vol)
 
     def _draw_thres(self, dc):
         w, h = dc.Size
         w = min(w, self.max_f)
 
-        y = (h - WAV_TOP) * self.thres / self.max_val
-        y = min(y, h - WAV_TOP)
+        max_h = h - WAV_TOP - CANDIDATE_H
+        vol = max_h * self.thres / self.max_val
+        vol = min(vol, max_h)
 
         dc.SetPen(wx.RED_PEN)
-        dc.DrawLine(0, h - y, w, h - y)
+        bottom_y = h - CANDIDATE_H
+        dc.DrawLine(0, bottom_y - vol, w, bottom_y - vol)
 
     def _draw_top_line(self, dc):
         w, h = dc.Size
@@ -266,6 +278,8 @@ class WaveView(wx.ScrolledWindow):
 
         rects_p = []
         rects_x = []
+
+        max_h = h - WAV_TOP - CANDIDATE_H
 
         for label in self.ml():
             st_f = label.start * self.rate
@@ -294,24 +308,24 @@ class WaveView(wx.ScrolledWindow):
 
             rect = None
             if st_in_range and ed_in_range:
-                rect = [st, WAV_TOP, ed - st, h - WAV_TOP]
+                rect = [st, WAV_TOP, ed - st, max_h]
                 if selected:
                     arrows.append([[x + st, y + self.st_arrow_y] for x, y
                                   in self.right_arrow])
                     arrows.append([[x + ed - 1, y + self.ed_arrow_y] for x, y
                                   in self.left_arrow])
             elif st_in_range and (not ed_in_range):
-                rect = [st, WAV_TOP, w - st, h - WAV_TOP]
+                rect = [st, WAV_TOP, w - st, max_h]
                 if selected:
                     arrows.append([[x + st, y + self.st_arrow_y] for x, y
                                   in self.right_arrow])
             elif (not st_in_range) and ed_in_range:
-                rect = [0, WAV_TOP, ed, h - WAV_TOP]
+                rect = [0, WAV_TOP, ed, max_h]
                 if selected:
                     arrows.append([[x + ed - 1, y + self.ed_arrow_y] for x, y
                                   in self.left_arrow])
             elif (st_f < self.left_f) and (self.left_f + w < ed_f):
-                rect = [0, WAV_TOP, w, h - WAV_TOP]
+                rect = [0, WAV_TOP, w, max_h]
 
             if rect:
                 if selected and (not self.playing):
@@ -387,6 +401,27 @@ class WaveView(wx.ScrolledWindow):
         for rect in rects:
             dc.DrawRectangleRect(rect)
 
+    def _draw_candidate(self, dc):
+        w, h = dc.Size
+        w = min(w, self.max_f)
+
+        top_y = h - CANDIDATE_H
+
+        dc.SetPen(wx.TRANSPARENT_PEN)
+        dc.SetBrush(wx.Brush('#FFEFD5'))
+        dc.DrawRectangle(0, top_y, w, h)
+
+        dc.SetPen(wx.BLACK_PEN)
+        dc.DrawLine(0, top_y, w, top_y)
+
+        for c_f in self.candidate_f:
+            min_f = self.left_f
+            max_f = min(min_f + w - 1, self.max_f)
+
+            if min_f <= c_f and c_f <= max_f:
+                x = c_f - min_f
+                dc.DrawLine(x, top_y, x, h)
+
     def _draw_out_of_area(self, dc):
         w, h = dc.Size
 
@@ -403,7 +438,7 @@ class WaveView(wx.ScrolledWindow):
         dc.SetPen(wx.Pen('#FF0000'))
         dc.SetBrush(wx.Brush('#FF0000'))
         cur_f = self.cur_f - self.left_f
-        dc.DrawLine(cur_f, 0, cur_f, h)
+        dc.DrawLine(cur_f, 0, cur_f, h - CANDIDATE_H)
         dc.DrawPolygon(self.down_arrow, cur_f, 0)
 
     #--------------------------------------------------------------------------
@@ -432,8 +467,8 @@ class WaveView(wx.ScrolledWindow):
         if not self.wp:
             return
 
-        labels = find_sound(self.wav_file, sil_lv, sil_dur,
-                            before_label_dur, after_label_dur)
+        labels = find_sound_d(self.buffer, self.nchannels, self.sampwidth,
+                self.src_rate, sil_lv, sil_dur, before_label_dur, after_label_dur)
 
         if self.ml is None:
             self.ml = MyLabels(labels)
@@ -687,10 +722,11 @@ class WaveView(wx.ScrolledWindow):
 
         self._Buffer = wx.EmptyBitmap(*Size)
 
-        self.st_arrow_y = WAV_TOP + ((self.Height - WAV_TOP) / 3)
-        self.ed_arrow_y = WAV_TOP + ((self.Height - WAV_TOP) * 2 / 3)
+        max_h = self.Height - WAV_TOP - CANDIDATE_H
+        self.st_arrow_y = WAV_TOP + (max_h / 3)
+        self.ed_arrow_y = WAV_TOP + (max_h * 2 / 3)
 
-        self.handle_dist = ((self.Height - WAV_TOP) / 3) / 2
+        self.handle_dist = (max_h / 3) / 2
 
         self.UpdateDrawing()
 
@@ -761,7 +797,7 @@ class WaveView(wx.ScrolledWindow):
             self.wp.pause_f = 0
             wx.PostEvent(self.listener, ChangeCurEvent())
             drag_scroll = False
-        else:
+        elif evt.Y < self.Height - CANDIDATE_H:
             if not self.playing:
                 # drag handle
                 if self.is_in_left_handle(evt.X, evt.Y):
@@ -781,6 +817,23 @@ class WaveView(wx.ScrolledWindow):
                         cur_s = float(cur_f) / self.rate
                         self.ml().select(cur_s)
                         wx.PostEvent(self.listener, ChangeSelectedLabelEvent())
+        else:
+            min_dist = self.max_f
+            min_c_f = 0
+            for c_f in self.candidate_f:
+                dist = abs(c_f - cur_f)
+                if dist < min_dist:
+                    min_dist = dist
+                    min_c_f = c_f
+
+            if min_dist < CANDIDATE_CLICK_RANGE:
+                src_f = min_c_f * self.src_rate / self.rate
+                self.cur_f = min_c_f
+                self.wp.seek(self.ml(), src_f)
+                self.wp.pause_f = 0
+                wx.PostEvent(self.listener, ChangeCurEvent())
+
+            drag_scroll = False
 
         if drag_scroll and (not self.playing):
             self.drag_scroll = evt.X
@@ -1006,6 +1059,11 @@ class WaveView(wx.ScrolledWindow):
                 new_pos = left_f / PPU
 
                 self.SetScrollPos(wx.HORIZONTAL, new_pos)
+
+            self.candidate_f = []
+            for c_s in self.candidate_s:
+                c_f = int(c_s * self._rate)
+                self.candidate_f += [c_f]
 
             self.UpdateDrawing()
 

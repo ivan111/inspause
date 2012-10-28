@@ -64,7 +64,7 @@ static signed short fixedToShort(mad_fixed_t Fixed)
     return (signed short) Fixed;
 }
 
-int openFile(const char* fileName)
+int open(const char* fileName)
 {
     int index = findFreeHandle();
     FILE* fileHandle;
@@ -92,10 +92,13 @@ int openFile(const char* fileName)
     mad_timer_reset(&mp3Handle->timer);
 
     handles[index] = mp3Handle;
+
+	readNextFrame(mp3Handle);
+
     return index;
 }
 
-void closeFile(int handle)
+void close(int handle)
 {
     if (handles[handle] != NULL) {
         closeHandle(handles[handle]);
@@ -103,20 +106,7 @@ void closeFile(int handle)
     }
 }
 
-unsigned int getSamplerate(int handle)
-{
-	unsigned int samplerate = 0;
-	MP3FileHandle* mp3;
-
-	if (handles[handle] != NULL) {
-	    mp3 = handles[handle];
-		samplerate = mp3->frame.header.samplerate;
-	}
-
-	return samplerate;
-}
-
-int getNumChannels(int handle)
+int getnchannels(int handle)
 {
 	int ch = 2;
 	MP3FileHandle* mp3;
@@ -127,6 +117,24 @@ int getNumChannels(int handle)
 	}
 
 	return ch;
+}
+
+int getsampwidth(int handle)
+{
+	return 2;
+}
+
+unsigned int getframerate(int handle)
+{
+	unsigned int samplerate = 0;
+	MP3FileHandle* mp3;
+
+	if (handles[handle] != NULL) {
+	    mp3 = handles[handle];
+		samplerate = mp3->frame.header.samplerate;
+	}
+
+	return samplerate;
 }
 
 static int readNextFrame(MP3FileHandle* mp3)
@@ -149,7 +157,7 @@ static int readNextFrame(MP3FileHandle* mp3)
                     return 0;
                 inputBufferSize = leftOver + readBytes;
             } else {
-                int readBytes = fread(mp3->inputBuffer, 1, INPUT_BUFFER_SIZE, mp3->file);
+                readBytes = fread(mp3->inputBuffer, 1, INPUT_BUFFER_SIZE, mp3->file);
                 if (readBytes == 0)
                     return 0;
                 inputBufferSize = readBytes;
@@ -176,15 +184,17 @@ static int readNextFrame(MP3FileHandle* mp3)
     return -1;
 }
 
-int readFrames(int handle, short* target, int size)
+int readframes(int handle, short* target, int size)
 {
     MP3FileHandle* mp3 = handles[handle];
-
     int idx = 0;
+	int value;
+	int result;
+
     while (idx < size) {
         if (mp3->leftSamples > 0) {
             for ( ; idx < size && mp3->offset < mp3->synth.pcm.length; mp3->leftSamples--, mp3->offset++) {
-                int value = fixedToShort(mp3->synth.pcm.samples[0][mp3->offset]);
+                value = fixedToShort(mp3->synth.pcm.samples[0][mp3->offset]);
                 target[idx++] = value;
 
                 if (MAD_NCHANNELS(&mp3->frame.header) == 2) {
@@ -193,7 +203,7 @@ int readFrames(int handle, short* target, int size)
                 }
             }
         } else {
-            int result = readNextFrame(mp3);
+            result = readNextFrame(mp3);
             if (result == 0)
                 return 0;
         }

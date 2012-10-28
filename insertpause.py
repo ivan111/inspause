@@ -14,7 +14,7 @@ def insert_pause(in_fname, out_fname, pause_fname,
                  factor=FACTOR, add=ADD):
     try:
         if in_fname.lower().endswith('mp3'):
-            buffer, rate, ch = mp3.readframes(in_fname)
+            buffer, ch, rate = mp3.readallframes(in_fname)
             width = 2
             nframes = len(buffer) / (ch * width)
         else:

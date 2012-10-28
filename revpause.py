@@ -3,7 +3,7 @@
 import audioop
 import wave
 
-from findsound import find_sound, rms_ratecv, get_sil_f
+from findsound import find_sound_d, rms_ratecv, get_sil_f
 from findsound import SND_DUR, LABEL_BEFORE_DUR, LABEL_AFTER_DUR
 from labels import Label, Labels
 import mp3
@@ -29,16 +29,18 @@ def rev_pause(normal, paused, sil_lv=SIL_LV, sil_dur=SIL_DUR, rate=RATE,
         print 'SIL_DUR:', sil_dur
         print 'RATE:', rate
 
-    labels_p = find_sound(paused, sil_lv, sil_dur, 0, 0, rate,
-            wav_scale=WAV_SCALE)
+    data_n, buf_n, ch_n, width_n, src_rate_n = get_data(normal, rate)
+    buf_n = None
+    max_s = float(len(data_n)) / rate
+    data_p, buf_p, ch_p, width_p, src_rate_p = get_data(paused, rate)
+
+    labels_p = find_sound_d(buf_p, ch_p, width_p, src_rate_p,
+            sil_lv, sil_dur, 0, 0, rate, wav_scale=WAV_SCALE)
+    buf_p = None
     labels = Labels()
 
     if DEBUG:
         print labels_p
-
-    data_n = get_data(normal, rate)
-    max_s = float(len(data_n)) / rate
-    data_p = get_data(paused, rate)
 
     max_val = max(data_p) / WAV_SCALE
     thres = sil_lv * max_val / 100
@@ -105,19 +107,22 @@ def rev_pause(normal, paused, sil_lv=SIL_LV, sil_dur=SIL_DUR, rate=RATE,
 
 def get_data(name, rate):
     if name.lower().endswith('mp3'):
-        buffer, src_rate = mp3.readframesmono(name)
+        buffer, ch, src_rate = mp3.readallframes(name)
         width = 2
     else:
         wf = wave.open(name, 'r')
         buffer = wf.readframes(wf.getnframes())
+        ch = wf.getnchannels()
         width = wf.getsampwidth()
         src_rate = wf.getframerate()
-        if wf.getnchannels() == 2:
-            buffer = audioop.tomono(buffer, wf.getsampwidth(), 0.5, 0.5)
 
-    data = rms_ratecv(buffer, 1, width, src_rate, rate)
+    if ch == 2:
+        buffer = audioop.tomono(buffer, width, 0.5, 0.5)
+        ch = 1
 
-    return data
+    data = rms_ratecv(buffer, ch, width, src_rate, rate)
+
+    return data, buffer, ch, width, src_rate
 
 
 def search_pattern(data, pattern, rate, thres, start_f=0):

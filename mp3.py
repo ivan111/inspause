@@ -8,66 +8,99 @@ try:
 except:
     print 'could not load libmad.dll'
 
-BUF_SIZE = 1024 * 8
+BUF_SIZE = 5 * 8192
 
-def readframes(file_name):
-    handle = lib.openFile(file_name.encode('shift-jis'))
-    if handle == -1:
-        raise IOError, 'mp3 file open error'
 
-    c_short_a = c_short * BUF_SIZE
-    buf = c_short_a()
-    lib.readFrames.argtypes = [c_int, POINTER(c_short), c_int]
+class MP3:
+    _handle = -1
 
-    try:
-        size = lib.readFrames(handle, buf, BUF_SIZE)
+    def open(self, file_name):
+        self._handle = lib.open(file_name.encode('shift-jis'))
+        if self._handle == -1:
+            raise IOError, 'mp3 file open error'
 
-        buffer = ''
-        while size != 0:
-            buffer += struct.pack('%dh' % size, *buf)
-            size = lib.readFrames(handle, buf, BUF_SIZE)
+    def close(self):
+        if self._handle != -1:
+            lib.close(self._handle)
 
-        rate = lib.getSamplerate(handle)
-        ch = lib.getNumChannels(handle)
-    except Exception as e:
-        print e.message
-        buffer = ''
-        rate = 0
+    def getnchannels(self):
         ch = 2
 
-    lib.closeFile(handle)
+        if self._handle != -1:
+            ch = lib.getnchannels(self._handle)
 
-    return (buffer, rate, ch)
+        return ch
 
-def readframesmono(file_name):
-    handle = lib.openFile(file_name.encode('shift-jis'))
+    def getsampwidth(self):
+        return 2
+
+    def getframerate(self):
+        rate = 0
+
+        if self._handle != -1:
+            rate = lib.getframerate(self._handle)
+
+        return rate
+
+    def readframes(self, n):
+        buffer = ''
+
+        if self._handle == -1:
+            return buffer
+
+        c_short_a = c_short * n
+        buf = c_short_a()
+        lib.readframes.argtypes = [c_int, POINTER(c_short), c_int]
+
+        try:
+            size = lib.readframes(self._handle, buf, n)
+            if size != 0:
+                buffer = struct.pack('%dh' % size, *buf)
+        except Exception as e:
+            print e.message
+
+        return buffer
+
+
+def readallframes(file_name):
+    handle = lib.open(file_name.encode('shift-jis'))
     if handle == -1:
         raise IOError, 'mp3 file open error'
 
     c_short_a = c_short * BUF_SIZE
     buf = c_short_a()
-    lib.readFrames.argtypes = [c_int, POINTER(c_short), c_int]
+    lib.readframes.argtypes = [c_int, POINTER(c_short), c_int]
 
     try:
-        size = lib.readFramesMono(handle, buf, BUF_SIZE)
+        size = lib.readframes(handle, buf, BUF_SIZE)
 
         buffer = ''
         while size != 0:
             buffer += struct.pack('%dh' % size, *buf)
-            size = lib.readFramesMono(handle, buf, BUF_SIZE)
+            size = lib.readframes(handle, buf, BUF_SIZE)
 
-        rate = lib.getSamplerate(handle)
+        ch = lib.getnchannels(handle)
+        rate = lib.getframerate(handle)
     except Exception as e:
         print e.message
+
         buffer = ''
+        ch = 2
         rate = 0
 
-    lib.closeFile(handle)
+    lib.close(handle)
 
-    return (buffer, rate)
+    return (buffer, ch, rate)
 
 
 if __name__ == '__main__':
-    buf, rate = readframes('in.mp3')
-    print 'rate: %d' % rate
-    print 'len: %d' % len(buf)
+    mp3 = MP3()
+    mp3.open('in.mp3')
+    ch = mp3.getnchannels()
+    rate = mp3.getframerate()
+    buf = mp3.readframes(1024)
+    mp3.close()
+    print 'len: %d, ch: %d, rate: %d' % (len(buf), ch, rate)
+
+    buf, ch, rate = readallframes('in.mp3')
+    print 'len: %d, ch: %d, rate: %d' % (len(buf), ch, rate)
