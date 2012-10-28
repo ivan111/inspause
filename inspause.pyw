@@ -537,6 +537,8 @@ class InsPause(wx.App):
                 chk_dsp = dlg.FindWindowByName(dsp)
                 self.settings[dsp] = chk_dsp.Value
 
+            self.set_labels()
+
     def get_nc_int(self, nc, def_val):
         val = def_val
         try:
