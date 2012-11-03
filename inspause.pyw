@@ -308,8 +308,8 @@ class InsPause(wx.App):
             self.OnRefind(None)
             labels = self.view.get_labels()
             labels.write(labels_file)
-        else:
-            self.view.set_labels(labels_file)
+
+        self.view.set_labels(labels_file)
 
         self.view.sil_lv = self.settings['sil_lv']
 

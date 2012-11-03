@@ -12,7 +12,7 @@ SIL_DUR = 0.3
 SND_DUR = 0.2
 LABEL_BEFORE_DUR = 0.1
 LABEL_AFTER_DUR = 0.1
-RATE = 48
+RATE = 384
 
 
 # based on the Sound Finder Audacity script
