@@ -53,6 +53,7 @@ class ChangeSelectedLabelEvent(wx.PyEvent):
         wx.PyEvent.__init__(self)
         self.SetEventType(EVT_CHANGE_SEL_ID)
 
+
 class ChangeLabelsEvent(wx.PyEvent):
     def __init__(self):
         wx.PyEvent.__init__(self)
@@ -184,6 +185,10 @@ class WaveView(wx.ScrolledWindow):
 
         if not self.wp.playing and self.ml().selected is not None:
             self.cur_f = int(self.ml().selected.start * self.rate)
+
+            src_f = self.cur_f * self.src_rate / self.rate
+            self.wp.seek(self.ml(), src_f)
+
             self.left_f = self.cur_f - 50
 
         self.UpdateDrawing()
