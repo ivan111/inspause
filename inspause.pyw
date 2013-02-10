@@ -4,6 +4,9 @@ import codecs
 import os
 import sys
 
+# 作業フォルダを実行ファイルのあるフォルダに
+os.chdir(os.path.dirname(sys.argv[0]) or '.')
+
 already_exists = False
 
 try:
