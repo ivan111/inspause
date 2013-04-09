@@ -7,291 +7,389 @@ import struct
 import pyaudio
 import wx
 
-from insertpause import FACTOR, ADD
+from mywave import CHUNK_F
 
-EVT_UPDATE_ID = wx.NewId()
+
+EVT_CUR_CHANGED_ID = wx.NewId()
 EVT_EOF_ID = wx.NewId()
-CHUNK = 1024
 
-PB_DUR = 0.5
-PB_PAUSE_SEC = 0.5
-
-
-class UpdateEvent(wx.PyEvent):
-    def __init__(self, cur_f):
-        wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_UPDATE_ID)
-        self.cur_f = cur_f
-
-
-class EOFEvent(wx.PyEvent):
-    def __init__(self):
-        wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_EOF_ID)
+# ---- もしカット再生
+IFCUT_DUR_S   = 0.8  # 再生長さ（秒）。前後それぞれに設定される。
+IFCUT_PAUSE_S = 0.5  # ポーズ時間（秒）
 
 
 class WavePlayer(threading.Thread):
-    def __init__(self, listener, buffer, nchannels, sampwidth, framerate):
+    '''
+    wave 形式の音を再生するクラス
+    ラベルを設定することでポーズ入りの再生ができる
+    '''
+
+    def __init__(self, wav):
         threading.Thread.__init__(self)
         self.setDaemon(True)
-        self.listener = listener
 
-        self.buffer = buffer
-        self.nchannels = nchannels
-        self.sampwidth = sampwidth
-        self.framerate = framerate
-        self.nframes = len(buffer) / (nchannels * sampwidth)
-        self.min_f = 0
-        self.max_f = self.nframes
+        self._init_instance_var(wav)
+
+
+    def _init_instance_var(self, wav):
+        self.wav = wav
+
+        self.labels = []
+        self.listenser = None
+        self.is_running = True  # False ならスレッドを終了
+
         self.start_cur_f = 0
 
         self.pause_mode = False
-        self.labels = []
         self.cur_lbl_pos = 0
         self.is_in_label = False
-        self.factor = FACTOR
-        self.add = ADD
+        self.factor = 0.5
+        self.add = 0
 
-        self.border_mode = False
-        self.border_f = 0
+        self.ifcut_mode = False
+        self.ifcut_f = 0
+
+        self.is_repeat = False
+
+        self.first_pause = True
+
+        # ---- プロパティ用
+        self._cur_f = 0
+        self._playing = False
+        self._min_f = 0
+        self._max_f = wav.max_f
 
     def run(self):
         p = pyaudio.PyAudio()
 
-        stream = p.open(format=p.get_format_from_width(self.sampwidth),
-                        channels=self.nchannels,
-                        rate=self.framerate,
+        stream = p.open(format=p.get_format_from_width(self.wav.w),
+                        channels=self.wav.ch,
+                        rate=self.wav.rate,
                         output=True)
 
-        self.pause_f = 0
+        self.pause_fs = 0
+        chunk_s = self.f_to_s(CHUNK_F)
 
         while True:
-            if self.cancel:
+            if not self.is_running:
                 break
-            if self.playing:
-                if self.cur_f < self.min_f:
-                    self.cur_f = self.min_f
 
-                if 0 < self.pause_f:
-                    # Play Pause
-                    nframes = min(CHUNK, self.pause_f)
-                    stream.write(struct.pack('%ds' % nframes, ''))
-                    self.pause_f = self.pause_f - nframes
+            if not self.playing:
+                # Pause
 
-                    self.is_in_label = False
-                elif self.cur_f < self.max_f:
-                    # Play
-                    wx.PostEvent(self.listener, UpdateEvent(self.cur_f))
-                    st = self.cur_f * self.nchannels * self.sampwidth
-                    ed = st + (CHUNK * self.nchannels * self.sampwidth)
-                    ed = min(ed, len(self.buffer))
-                    stream.write(self.buffer[st: ed])
-                    self.cur_f = self.cur_f + CHUNK
+                if self.first_pause:
+                    # 無音。streamに残っている余計な音をなくしておく。
+                    # これがないと再生を再開したときに前の音が少し残っていることがある
+                    stream.write(struct.pack('8192s', ''))
 
-                    # Border Mode
-                    if self.border_mode:
-                        if self.border_f < self.cur_f:
-                            self.pause_f = int(PB_PAUSE_SEC * self.framerate)
-                            self.border_mode = False
+                    self.first_pause = False
 
-                    # Pause Mode
+                time.sleep(0.1)
+                continue
+
+            self.first_pause = True
+
+            if 0 < self.pause_fs:
+                # in pause
+                nframes = min(CHUNK_F, self.pause_fs)
+                stream.write(struct.pack('%ds' % nframes, ''))  # 無音
+                self.pause_fs -= nframes
+
+                self.is_in_label = False
+            elif self.wav.cur_f >= self.max_f:
+                if self.is_repeat:
+                    self.wav.cur_f = 0
+
                     if self.pause_mode:
-                        cur_s = float(self.cur_f) / self.framerate
-
-                        if self.cur_lbl_pos < len(self.labels):
-                            label = self.labels[self.cur_lbl_pos]
-
-                            if not self.is_in_label and label.start < cur_s:
-                                if label.end < cur_s:
-                                    self.cur_lbl_pos += 1
-                                else:
-                                    self.is_in_label = True
-
-                            if self.is_in_label:
-                                if label.is_pause():
-                                    if label.end < cur_s:
-                                        if label.is_spec():
-                                            dur = label.dur
-                                        else:
-                                            dur = label.dur * self.factor + self.add
-                                        dur = dur * self.nchannels * self.sampwidth
-                                        self.pause_f = int(dur * self.framerate)
-                                        self.pause_f = max(0, min(self.pause_f, self.nframes))
-
-                                        self.cur_lbl_pos += 1
-
-                                elif label.is_cut():
-                                    end_f = int(label.end * self.framerate)
-                                    self.cur_f = max(0, min(end_f, self.nframes))
-                                    self.cur_lbl_pos += 1
-
-                                else:
-                                    self.cur_lbl_pos += 1
+                        self.cur_lbl_pos = 0
                 else:
                     # EOF
                     self.playing = False
-                    self.pause_mode = False
-                    self.cur_f = self.start_cur_f
-                    wx.PostEvent(self.listener, UpdateEvent(self.start_cur_f))
+
+                    self.wav.cur_f = self.start_cur_f
+
+                    wx.PostEvent(self.listener, CurChangedEvent(self.wav.cur_s))
                     wx.PostEvent(self.listener, EOFEvent())
             else:
-                # Pause
-                self.pause_mode = False
-                self.pause_f = 0
-                time.sleep(0.1)
+                # Play
+                frames = self.wav.read()
+                wx.PostEvent(self.listener, CurChangedEvent(self.wav.cur_s))
+
+                if len(frames) == 0:
+                    self.playing = False
+                    wx.PostEvent(self.listener, EOFEvent())
+
+                stream.write(frames)
+
+                # IfCut Mode
+                if self.ifcut_mode:
+                    if self.ifcut_f < self.wav.cur_f + CHUNK_F:
+                        # これも Pause Mode と同じように
+                        # ぴったりの位置で止める処理をする
+
+                        num_f = self.ifcut_f - self.wav.cur_f
+
+                        if num_f > 0:
+                            frames = self.wav.read(num_f)
+                            stream.write(frames)
+
+                            wx.PostEvent(self.listener, CurChangedEvent(self.wav.cur_s))
+
+                        # ポーズを設定
+                        self.pause_fs = self.wav.s_to_f(IFCUT_PAUSE_S) * self.wav.frame_size
+                        self.ifcut_f = self.wav.max_f
+
+                # Pause Mode
+                if self.pause_mode:
+                    if self.cur_lbl_pos < len(self.labels):
+                        label = self.labels[self.cur_lbl_pos]
+
+                        if not self.is_in_label and label.start_s < self.wav.cur_s:
+                            # ラベルの中に入った
+
+                            if label.end_s < self.wav.cur_s:
+                                # ラベルはもう終わっていた
+                                self.cur_lbl_pos += 1
+                            else:
+                                self.is_in_label = True
+
+                        if self.is_in_label:
+                            if label.is_pause():
+                                if label.end_s < self.wav.cur_s + chunk_s:
+                                    # ポーズラベルのケツに来た。
+                                    # 実は chunk_s を足してるから少し余裕がある。
+                                    # これはポーズ位置ぴったりで止まるため。
+                                    #
+                                    # ずれると言っても長くても 25 ms （0.025秒）ぐらい
+
+                                    # ---- ラベルのケツにピッタリつける。
+                                    # 余裕をもたせた分だけ再生する
+
+                                    num_f = self.s_to_f(label.end_s - self.wav.cur_s)
+
+                                    if num_f > 0:
+                                        frames = self.wav.read(num_f)
+                                        stream.write(frames)
+
+                                        wx.PostEvent(self.listener, CurChangedEvent(self.wav.cur_s))
+
+
+                                    # ---- ポーズを設定
+
+                                    dur_s = label.dur_s * self.factor + self.add
+                                    dur_s = dur_s * self.wav.frame_size
+                                    self.pause_fs = self.s_to_f(dur_s)
+                                    self.pause_fs = max(0, min(self.pause_fs, self.wav.max_f))
+
+                                    self.cur_lbl_pos += 1
+
+                            elif label.is_cut():
+                                self.wav.cur_s = label.end_s
+                                self.is_in_label = False
+                                self.cur_lbl_pos += 1
+
+                            else:
+                                self.is_in_label = False
+                                self.cur_lbl_pos += 1
 
         stream.close()
         p.terminate()
 
-    _cancel = False
+    def add_listener(self, listener):
+        self.listener = listener
 
-    def seek(self, labels, pos):
-        self.labels = labels
-        self.cur_f = pos
-
-        self.search_label_pos()
+    def stop_thread(self):
+        self.is_running = False
 
     def search_label_pos(self):
-        cur_s = float(self.cur_f) / self.framerate
+        cur_s = self.wav.cur_s
 
-        self.pause_f = 0
+        self.pause_fs = 0
         self.is_in_label = False
 
         i = 0
         for label in self.labels:
             if label.is_pause():
-                if cur_s < label.end:
-                    if label.start <= cur_s:
+                if cur_s < label.end_s:
+                    if label.start_s <= cur_s:
                         self.is_in_label = True
                     break
             elif label.is_cut():
-                if label.start < cur_s and cur_s < label.end:
+                if label.contains(cur_s):
                     self.is_in_label = True
                     break
 
-                if cur_s < label.start:
+                if cur_s < label.start_s:
                     break
 
             i += 1
 
         self.cur_lbl_pos = i
 
+    def f_to_s(self, f):
+        return float(f) / self.wav.rate
+
+    def s_to_f(self, s):
+        return int(s * self.wav.rate)
+
+
+    #--------------------------------------------------------------------------
+    # コマンド
+
+    # ---- シーク
+
+    def tail(self):
+        self.seek(self.wav.dur_s)
+
+    def seek(self, pos_s):
+        self.wav.cur_s = pos_s
+
+        if self.labels:
+            self.search_label_pos()
+
+
+    # ---- 再生
+
     def play(self):
         self.pause_mode = False
-        self.border_mode = False
+        self.ifcut_mode = False
+        self.is_repeat  = True
 
         self.min_f = 0
-        self.max_f = self.nframes
-        self.start_cur_f = self.cur_f
+        self.max_f = self.wav.max_f
+        self.start_cur_f = self.wav.cur_f
 
         self.playing = True
 
     def can_play(self):
-        if (not self.playing) and (self.cur_f < self.nframes):
+        if (not self.playing) and (self.wav.cur_f < self.wav.max_f):
             return True
         else:
             return False
 
     def pause_mode_play(self, labels, factor, add):
         self.pause_mode = True
-        self.border_mode = False
+        self.ifcut_mode = False
+        self.is_repeat  = True
 
         self.min_f = 0
-        self.max_f = self.nframes
-        self.start_cur_f = self.cur_f
+        self.max_f = self.wav.max_f
+        self.start_cur_f = self.wav.cur_f
 
         self.labels = labels
         self.factor = factor
         self.add = add
 
-        self.playing = True
-
-    def play_label(self, label):
-        self.pause_mode = False
-        self.border_mode = False
-
-        self.min_f = int(label.start * self.framerate)
-        self.max_f = int(label.end * self.framerate)
-
-        min_dur_f = int(0.1 * self.framerate)
-
-        if self.cur_f < self.min_f:
-            self.cur_f = self.min_f
-            self.start_cur_f = self.min_f
-        elif self.max_f < self.cur_f:
-            self.cur_f = self.min_f
-            self.start_cur_f = self.cur_f
-        else:
-            if (self.max_f - self.cur_f) < min_dur_f:
-                self.cur_f = self.min_f
-                self.start_cur_f = self.min_f
-            else:
-                self.start_cur_f = self.cur_f
+        self.search_label_pos()
 
         self.playing = True
 
-    def play_border(self, border_s, is_change_start_cur_f=True):
+    def play_selected(self, selected):
         self.pause_mode = False
-        self.border_mode = True
+        self.ifcut_mode = False
+        self.is_repeat  = False
 
-        self.min_f = int((border_s - PB_DUR) * self.framerate)
+        self.min_f = int(selected.start_s * self.wav.rate)
+        self.max_f = int(selected.end_s * self.wav.rate)
+
+        self.wav.cur_f = self.min_f
+        self.start_cur_f = self.min_f
+
+        self.playing = True
+
+    def play_ifcut(self, ifcut_s, is_change_start_cur_f=True):
+        self.pause_mode = False
+        self.ifcut_mode = True
+        self.is_repeat  = False
+
+        self.min_f = int((ifcut_s - IFCUT_DUR_S) * self.wav.rate)
         self.min_f = max(0, self.min_f)
-        self.max_f = int((border_s + PB_DUR) * self.framerate)
-        self.max_f = min(self.max_f, self.nframes)
-        self.cur_f = self.min_f
+        self.max_f = int((ifcut_s + IFCUT_DUR_S) * self.wav.rate)
+        self.max_f = min(self.max_f, self.wav.max_f)
+        self.wav.cur_f = self.min_f
         if is_change_start_cur_f:
-            self.start_cur_f = self.cur_f
+            self.start_cur_f = self.wav.cur_f
         else:
-            self.start_cur_f = int(border_s * self.framerate)
+            self.start_cur_f = int(ifcut_s * self.wav.rate)
 
-        self.border_f = int(border_s * self.framerate)
+        self.ifcut_f = int(ifcut_s * self.wav.rate)
 
         self.playing = True
 
-    def get_cancel(self):
-        return self._cancel
 
-    def set_cancel(self, cancel):
-        self._cancel = True
+    #--------------------------------------------------------------------------
+    # プロパティ
 
-    cancel = property(get_cancel, set_cancel)
+    # ---- 現在位置（フレーム）
 
-    _cur_f = 0
+    @property
+    def cur_f(self):
+        return self.wav.cur_f
 
-    def get_cur_f(self):
-        return self._cur_f
+    @cur_f.setter
+    def cur_f(self, cur_f):
+        self.wav.cur_f = cur_f
 
-    def set_cur_f(self, cur_f):
-        self._cur_f = max(0, min(int(cur_f), self.nframes))
 
-    cur_f = property(get_cur_f, set_cur_f)
+    # ---- 現在位置（秒）
 
-    _playing = False
+    @property
+    def cur_s(self):
+        return self.wav.cur_s
 
-    def is_playing(self):
+    @cur_s.setter
+    def cur_s(self, cur_s):
+        self.wav.cur_s = cur_s
+
+
+    # ---- 再生中か？
+
+    @property
+    def playing(self):
         return self._playing
 
-    def set_playing(self, playing):
+    @playing.setter
+    def playing(self, playing):
+        if playing == False:
+            self.pause_mode = False
+            self.pause_fs = 0
+            self.ifcut_mode = False
+
         self._playing = playing
 
-    playing = property(is_playing, set_playing)
 
-    _min_f = 0
+    # ---- 最小フレーム
 
-    def get_min_f(self):
+    @property
+    def min_f(self):
         return self._min_f
 
-    def set_min_f(self, min_f):
-        self._min_f = max(0, min(min_f, self.nframes))
+    @min_f.setter
+    def min_f(self, min_f):
+        self._min_f = max(0, min(min_f, self.wav.max_f))
 
-    min_f = property(get_min_f, set_min_f)
 
-    _max_f = 0
+    # ---- 最大フレーム
 
-    def get_max_f(self):
+    @property
+    def max_f(self):
         return self._max_f
 
-    def set_max_f(self, max_f):
-        self._max_f = max(0, min(max_f, self.nframes))
+    @max_f.setter
+    def max_f(self, max_f):
+        self._max_f = max(0, min(max_f, self.wav.max_f))
 
-    max_f = property(get_max_f, set_max_f)
+
+# 現在位置が変わったら通知されるイベント
+class CurChangedEvent(wx.PyEvent):
+    def __init__(self, cur_s):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_CUR_CHANGED_ID)
+        self.cur_s = cur_s
+
+
+# 再生が最後まで来たときに通知されるイベント
+class EOFEvent(wx.PyEvent):
+    def __init__(self):
+        wx.PyEvent.__init__(self)
+        self.SetEventType(EVT_EOF_ID)

@@ -4,122 +4,304 @@
     <object class="wxSplitterWindow" name="HorizontalSplitter">
       <object class="unknown" name="WaveView"/>
       <object class="wxSplitterWindow" name="VerticalSplitter">
-        <object class="wxPanel">
-          <object class="wxBoxSizer">
-            <orient>wxVERTICAL</orient>
-            <object class="sizeritem">
-              <object class="wxPanel">
-                <object class="wxBoxSizer">
-                  <orient>wxHORIZONTAL</orient>
-                  <object class="sizeritem">
-                    <object class="wxChoice" name="TypeChoice"/>
-                    <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                    <border>5</border>
+        <object class="wxNotebook" name="NoteBook">
+          <object class="notebookpage">
+            <object class="wxScrolledWindow" name="SettingsWindow">
+              <object class="wxBoxSizer">
+                <orient>wxHORIZONTAL</orient>
+                <object class="sizeritem">
+                  <object class="wxPanel">
+                    <object class="wxBoxSizer">
+                      <orient>wxVERTICAL</orient>
+                      <object class="sizeritem">
+                        <object class="wxPanel">
+                          <object class="wxStaticBoxSizer">
+                            <object class="sizeritem">
+                              <object class="wxStaticText">
+                                <label>範囲（秒） x </label>
+                              </object>
+                              <flag>wxALIGN_CENTRE_VERTICAL</flag>
+                            </object>
+                            <object class="sizeritem">
+                              <object class="unknown" name="TextFactor"/>
+                            </object>
+                            <object class="sizeritem">
+                              <object class="wxStaticText">
+                                <label> + </label>
+                              </object>
+                              <flag>wxALIGN_CENTRE_VERTICAL</flag>
+                            </object>
+                            <object class="sizeritem">
+                              <object class="unknown" name="TextAdd"/>
+                            </object>
+                            <object class="sizeritem">
+                              <object class="wxStaticText">
+                                <label> 秒</label>
+                              </object>
+                              <flag>wxALIGN_CENTRE_VERTICAL</flag>
+                            </object>
+                            <label>ポーズ時間</label>
+                            <orient>wxHORIZONTAL</orient>
+                          </object>
+                        </object>
+                        <flag>wxEXPAND</flag>
+                      </object>
+                      <object class="sizeritem">
+                        <object class="wxPanel">
+                          <object class="wxStaticBoxSizer">
+                            <object class="sizeritem">
+                              <object class="wxComboBox" name="CmbAutoPause">
+                                <size>256,-1</size>
+                                <style>wxCB_READONLY</style>
+                              </object>
+                            </object>
+                            <object class="sizeritem">
+                              <object class="wxPanel">
+                                <object class="wxGridSizer">
+                                  <cols>3</cols>
+                                  <rows>1</rows>
+                                  <object class="sizeritem">
+                                    <object class="wxButton" name="BtnAutoPause">
+                                      <label>使用</label>
+                                      <tooltip>初めから用意されているポーズ情報や追加したポーズ情報を使います</tooltip>
+                                    </object>
+                                  </object>
+                                  <object class="sizeritem">
+                                    <object class="wxButton" name="BtnAddAuto">
+                                      <label>追加...</label>
+                                      <tooltip>他の人が作ったポーズ情報を使えるように追加します</tooltip>
+                                    </object>
+                                  </object>
+                                  <object class="sizeritem">
+                                    <object class="wxButton" name="BtnCreateAuto">
+                                      <label>作成...</label>
+                                      <tooltip>ポーズ情報を他の人と共有するためのファイルを作ります</tooltip>
+                                    </object>
+                                  </object>
+                                </object>
+                              </object>
+                              <flag>wxTOP</flag>
+                              <border>6</border>
+                            </object>
+                            <label>作成済みポーズ</label>
+                            <orient>wxVERTICAL</orient>
+                          </object>
+                        </object>
+                        <flag>wxTOP|wxEXPAND</flag>
+                        <border>16</border>
+                      </object>
+                    </object>
                   </object>
+                  <flag>wxTOP|wxLEFT</flag>
+                  <border>8</border>
+                </object>
+                <object class="sizeritem">
+                  <object class="wxPanel">
+                    <object class="wxBoxSizer">
+                      <orient>wxVERTICAL</orient>
+                      <object class="sizeritem">
+                        <object class="wxPanel">
+                          <object class="wxStaticBoxSizer">
+                            <object class="sizeritem">
+                              <object class="wxButton" name="BtnInsertPauseOne">
+                                <label>このファイルだけ</label>
+                              </object>
+                            </object>
+                            <object class="sizeritem">
+                              <object class="wxButton" name="BtnInsertPauseAll">
+                                <label>全ファイル</label>
+                              </object>
+                              <flag>wxLEFT</flag>
+                              <border>12</border>
+                            </object>
+                            <label>ポーズファイル作成</label>
+                            <orient>wxHORIZONTAL</orient>
+                          </object>
+                          <size>400,-1</size>
+                        </object>
+                        <flag>wxEXPAND</flag>
+                      </object>
+                      <object class="sizeritem">
+                        <object class="wxPanel">
+                          <object class="wxStaticBoxSizer">
+                            <object class="sizeritem">
+                              <object class="wxSlider" name="ShiftSlider">
+                                <size>256,-1</size>
+                                <value>0</value>
+                                <min>-100</min>
+                                <max>100</max>
+                              </object>
+                              <flag>wxALIGN_CENTRE_VERTICAL</flag>
+                            </object>
+                            <label>ずれ調整</label>
+                            <orient>wxVERTICAL</orient>
+                            <object class="sizeritem">
+                              <object class="wxBoxSizer">
+                                <orient>wxHORIZONTAL</orient>
+                                <object class="sizeritem">
+                                  <object class="wxStaticText" name="LblShift">
+                                    <label> 0.000 秒</label>
+                                  </object>
+                                  <flag>wxLEFT|wxALIGN_CENTRE_VERTICAL</flag>
+                                  <border>6</border>
+                                </object>
+                                <object class="sizeritem">
+                                  <object class="wxButton" name="BtnShift">
+                                    <label>全体をずらす</label>
+                                    <enabled>0</enabled>
+                                  </object>
+                                  <flag>wxLEFT|wxALIGN_CENTRE_VERTICAL</flag>
+                                  <border>6</border>
+                                </object>
+                              </object>
+                            </object>
+                          </object>
+                        </object>
+                        <flag>wxTOP|wxEXPAND</flag>
+                        <border>16</border>
+                      </object>
+                    </object>
+                  </object>
+                  <flag>wxTOP|wxLEFT</flag>
+                  <border>8</border>
                 </object>
               </object>
-              <flag>wxEXPAND</flag>
             </object>
-            <object class="sizeritem">
-              <object class="wxListCtrl" name="LabelsList">
-                <style>wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_HRULES|wxLC_VRULES</style>
+            <label>メイン</label>
+          </object>
+          <object class="notebookpage">
+            <object class="wxScrolledWindow" name="ColorWindow">
+              <object class="wxBoxSizer">
+                <object class="sizeritem">
+                  <object class="wxBoxSizer">
+                    <object class="sizeritem">
+                      <object class="wxStaticBoxSizer">
+                        <object class="sizeritem">
+                          <object class="wxStaticText" name="LblBGRGB">
+                            <label>#000000</label>
+                          </object>
+                          <flag>wxLEFT</flag>
+                          <border>6</border>
+                        </object>
+                        <object class="sizeritem">
+                          <object class="wxSlider" name="BGSliderR">
+                            <size>256,-1</size>
+                            <min>0</min>
+                            <max>255</max>
+                            <bg>#FF0000</bg>
+                          </object>
+                          <flag>wxALL</flag>
+                          <border>6</border>
+                        </object>
+                        <object class="sizeritem">
+                          <object class="wxSlider" name="BGSliderG">
+                            <size>256,-1</size>
+                            <min>0</min>
+                            <max>255</max>
+                            <bg>#00FF00</bg>
+                          </object>
+                          <flag>wxALL</flag>
+                          <border>6</border>
+                        </object>
+                        <object class="sizeritem">
+                          <object class="wxSlider" name="BGSliderB">
+                            <size>256,-1</size>
+                            <min>0</min>
+                            <max>255</max>
+                            <bg>#0000FF</bg>
+                          </object>
+                          <flag>wxALL</flag>
+                          <border>6</border>
+                        </object>
+                        <label>背景色</label>
+                        <orient>wxVERTICAL</orient>
+                      </object>
+                    </object>
+                    <object class="sizeritem">
+                      <object class="wxPanel">
+                        <object class="wxStaticBoxSizer">
+                          <object class="sizeritem">
+                            <object class="wxSlider" name="DispSlider">
+                              <size>256,-1</size>
+                              <min>3</min>
+                              <max>100</max>
+                              <style>wxSL_HORIZONTAL</style>
+                            </object>
+                          </object>
+                          <label>表示範囲</label>
+                          <orient>wxVERTICAL</orient>
+                        </object>
+                      </object>
+                      <flag>wxTOP|wxEXPAND</flag>
+                      <border>16</border>
+                    </object>
+                    <orient>wxVERTICAL</orient>
+                  </object>
+                  <flag>wxTOP|wxLEFT</flag>
+                  <border>8</border>
+                </object>
+                <object class="sizeritem">
+                  <object class="wxStaticBoxSizer">
+                    <object class="sizeritem">
+                      <object class="wxStaticText" name="LblFGRGB">
+                        <label>#000000</label>
+                      </object>
+                      <flag>wxLEFT</flag>
+                      <border>6</border>
+                    </object>
+                    <label>前景色</label>
+                    <orient>wxVERTICAL</orient>
+                    <object class="sizeritem">
+                      <object class="wxSlider" name="FGSliderR">
+                        <size>256,-1</size>
+                        <min>0</min>
+                        <max>255</max>
+                        <bg>#FF0000</bg>
+                      </object>
+                      <flag>wxALL</flag>
+                      <border>6</border>
+                    </object>
+                    <object class="sizeritem">
+                      <object class="wxSlider" name="FGSliderG">
+                        <size>256,-1</size>
+                        <min>0</min>
+                        <max>255</max>
+                        <bg>#00FF00</bg>
+                      </object>
+                      <flag>wxALL</flag>
+                      <border>6</border>
+                    </object>
+                    <object class="sizeritem">
+                      <object class="wxSlider" name="FGSliderB">
+                        <size>256,-1</size>
+                        <min>0</min>
+                        <max>255</max>
+                        <bg>#0000FF</bg>
+                      </object>
+                      <flag>wxALL</flag>
+                      <border>6</border>
+                    </object>
+                  </object>
+                  <flag>wxTOP|wxLEFT</flag>
+                  <border>8</border>
+                </object>
+                <orient>wxHORIZONTAL</orient>
               </object>
-              <option>1</option>
-              <flag>wxEXPAND</flag>
             </object>
+            <label>表示</label>
           </object>
         </object>
         <object class="wxListCtrl" name="FileList">
-          <style>wxLC_REPORT|wxLC_SINGLE_SEL|wxLC_VRULES</style>
+          <style>wxLC_LIST|wxLC_SINGLE_SEL|wxLC_VRULES</style>
         </object>
         <orientation>vertical</orientation>
-        <minsize>100</minsize>
+        <minsize>150</minsize>
       </object>
       <orientation>horizontal</orientation>
-      <minsize>50</minsize>
+      <minsize>150</minsize>
       <style>wxSP_3D</style>
     </object>
     <size>600, 500</size>
-    <title>InsPause</title>
-  </object>
-  <object class="wxMenuBar" name="MenuBar">
-    <object class="wxMenu">
-      <object class="wxMenuItem" name="MenuOpenDir">
-        <label>開く...\tCtrl+O</label>
-        <bitmap stock_id="wxART_FOLDER_OPEN"/>
-      </object>
-      <object class="wxMenuItem" name="MenuSaveLabels">
-        <label>ラベルを保存\tCtrl+S</label>
-        <bitmap stock_id="wxART_FILE_SAVE"/>
-      </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="MenuQuitApp">
-        <label>終了\tCtrl+Q</label>
-        <bitmap stock_id="wxART_QUIT"/>
-      </object>
-      <label>ファイル(&amp;F)</label>
-    </object>
-    <object class="wxMenu">
-      <label>編集(&amp;E)</label>
-      <object class="wxMenuItem" name="MenuUndo">
-        <label>元に戻す\tCtrl+Z</label>
-        <bitmap stock_id="wxART_UNDO"/>
-      </object>
-      <object class="wxMenuItem" name="MenuRedo">
-        <label>やり直し\tCtrl+Y</label>
-        <bitmap stock_id="wxART_REDO"/>
-      </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="MenuInsert">
-        <label>現在位置にポーズ挿入</label>
-        <bitmap stock_id="wxART_NEW"/>
-      </object>
-      <object class="wxMenuItem" name="MenuRemove">
-        <label>選択したラベルを削除\tDelete</label>
-        <bitmap stock_id="wxART_DELETE"/>
-      </object>
-      <object class="wxMenuItem" name="MenuCut">
-        <label>現在位置でラベル分割\tC</label>
-        <bitmap stock_id="wxART_CUT"/>
-      </object>
-      <object class="wxMenuItem" name="MenuMergeLeft">
-        <label>左のラベルと結合\tL</label>
-      </object>
-      <object class="wxMenuItem" name="MenuMergeRight">
-        <label>右のラベルと結合\tR</label>
-      </object>
-      <object class="separator"/>
-      <object class="wxMenuItem" name="MenuSettings">
-        <label>設定...</label>
-      </object>
-    </object>
-    <object class="wxMenu">
-      <label>表示(&amp;V)</label>
-      <object class="wxMenuItem" name="MenuZoomIn">
-        <label>拡大\t+</label>
-      </object>
-      <object class="wxMenuItem" name="MenuZoomOut">
-        <label>縮小\t-</label>
-      </object>
-    </object>
-    <object class="wxMenu">
-      <label>ポーズ情報(&amp;I)</label>
-      <object class="wxMenuItem" name="MenuRefind">
-        <label>ポーズを検索し直す</label>
-      </object>
-      <object class="wxMenuItem" name="MenuShift">
-        <label>ラベルをずらす...</label>
-      </object>
-      <object class="wxMenuItem" name="MenuReverse">
-        <label>ポーズ入り音声からポーズ情報を作成</label>
-      </object>
-    </object>
-    <object class="wxMenu">
-      <label>ポーズ音声</label>
-      <object class="wxMenuItem" name="MenuInsertPause">
-        <label>ポーズ音声を作成</label>
-      </object>
-    </object>
   </object>
   <object class="wxToolBar" name="ToolBar">
     <object class="tool" name="ToolHead">
@@ -134,17 +316,9 @@
       <bitmap>icon\playpause.png</bitmap>
       <tooltip>ポーズモード再生</tooltip>
     </object>
-    <object class="tool" name="ToolPlayBorder">
-      <bitmap>icon\playborder.png</bitmap>
-      <tooltip>もしカット再生(b)</tooltip>
-    </object>
     <object class="tool" name="ToolPause">
       <bitmap>icon\pause.png</bitmap>
       <tooltip>一時停止(Space)</tooltip>
-    </object>
-    <object class="tool" name="ToolTail">
-      <bitmap>icon\tail.png</bitmap>
-      <tooltip>末尾へ(End)</tooltip>
     </object>
     <object class="tool" name="ToolZoomIn">
       <bitmap>icon\zoomin.png</bitmap>
@@ -187,332 +361,29 @@
       <tooltip>ポーズの削除(Delete)</tooltip>
     </object>
   </object>
-  <object class="wxDialog" name="ShiftLabelsDialog">
-    <title>ラベルをじらす</title>
-    <object class="wxBoxSizer">
-      <orient>wxVERTICAL</orient>
-      <object class="sizeritem">
-        <object class="wxStaticText">
-          <label>指定したミリ秒だけラベル位置をずらします（1,000ミリ秒＝1秒）。\nマイナスの値を指定した場合は位置が前の方にずれます。</label>
-        </object>
-        <flag>wxALL</flag>
-        <border>5</border>
+  <object class="wxMenuBar" name="MenuBar">
+    <object class="wxMenu">
+      <object class="wxMenuItem" name="MenuOpen">
+        <label>開く...</label>
+        <bitmap stock_id="wxART_FOLDER_OPEN"/>
       </object>
-      <object class="sizeritem">
-        <object class="wxBoxSizer">
-          <orient>wxHORIZONTAL</orient>
-          <object class="sizeritem">
-            <object class="unknown" name="TextShift"/>
-            <flag>wxALL</flag>
-            <border>5</border>
-          </object>
-          <object class="sizeritem">
-            <object class="wxStaticText">
-              <label>ミリ秒</label>
-            </object>
-            <flag>wxTOP|wxBOTTOM|wxRIGHT|wxALIGN_CENTRE_VERTICAL</flag>
-            <border>5</border>
-          </object>
-        </object>
+      <object class="wxMenuItem" name="MenuSave">
+        <label>ラベルを保存</label>
+        <bitmap stock_id="wxART_FILE_SAVE"/>
       </object>
-      <object class="sizeritem">
-        <object class="wxRadioButton" name="RadioShiftAll">
-          <label>すべてのファイル</label>
-          <value>1</value>
-        </object>
-        <flag>wxALL</flag>
-        <border>5</border>
-      </object>
-      <object class="sizeritem">
-        <object class="wxRadioButton" name="RadioShiftSelected">
-          <label>波形が表示されているファイルのみ</label>
-        </object>
-        <flag>wxALL</flag>
-        <border>5</border>
-      </object>
-      <object class="sizeritem">
-        <object class="wxBoxSizer">
-          <object class="sizeritem">
-            <object class="wxButton" name="ButtonRunShift">
-              <label>ラベルをずらす</label>
-            </object>
-            <flag>wxALL</flag>
-            <border>5</border>
-          </object>
-          <object class="sizeritem">
-            <object class="wxButton" name="ButtonCancelShift">
-              <label>キャンセル</label>
-            </object>
-            <flag>wxALL</flag>
-            <border>5</border>
-          </object>
-          <orient>wxHORIZONTAL</orient>
-        </object>
-        <flag>wxALIGN_CENTRE_HORIZONTAL</flag>
+      <object class="separator"/>
+      <label>ファイル</label>
+      <object class="wxMenuItem" name="MenuExit">
+        <label>終了</label>
+        <bitmap stock_id="wxART_QUIT"/>
       </object>
     </object>
-  </object>
-  <object class="wxPropertySheetDialog" name="SettingsDialog">
-    <object class="propertysheetpage">
-      <object class="wxPanel">
-        <object class="wxBoxSizer">
-          <orient>wxVERTICAL</orient>
-          <object class="sizeritem">
-            <object class="wxStaticText">
-              <label>無音レベル</label>
-            </object>
-            <flag>wxALL</flag>
-            <border>5</border>
-          </object>
-          <object class="sizeritem">
-            <object class="wxSlider" name="SilLvSlider">
-              <size>200,-1</size>
-              <min>0</min>
-              <max>100</max>
-            </object>
-            <flag>wxTOP|wxBOTTOM</flag>
-            <border>5</border>
-          </object>
-          <object class="sizeritem">
-            <object class="wxStaticText" name="TextSilDur">
-              <label>無音の最低長さ</label>
-            </object>
-            <flag>wxALL</flag>
-            <border>5</border>
-          </object>
-          <object class="sizeritem">
-            <object class="wxBoxSizer">
-              <orient>wxHORIZONTAL</orient>
-              <object class="sizeritem">
-                <object class="unknown" name="TextSilDur"/>
-                <flag>wxALL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>秒</label>
-                </object>
-                <flag>wxTOP|wxBOTTOM|wxRIGHT|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-            </object>
-          </object>
-        </object>
+    <object class="wxMenu" name="MenuSearchParent">
+      <object class="wxMenuItem" name="MenuSearch">
+        <label>ポーズ再検索</label>
+        <bitmap stock_id="wxART_FIND"/>
       </object>
-      <label>ポーズ検索</label>
+      <label>ポーズ再検索</label>
     </object>
-    <object class="propertysheetpage">
-      <object class="wxPanel">
-        <object class="wxBoxSizer">
-          <orient>wxVERTICAL</orient>
-          <object class="sizeritem">
-            <object class="wxBoxSizer">
-              <orient>wxHORIZONTAL</orient>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>ポーズの長さ ＝ 選択範囲 ×</label>
-                </object>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="unknown" name="TextFactor"/>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>+</label>
-                </object>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="unknown" name="TextAdd"/>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>秒</label>
-                </object>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-            </object>
-          </object>
-        </object>
-      </object>
-      <label>ポーズ音声</label>
-    </object>
-    <object class="propertysheetpage">
-      <object class="wxPanel">
-        <object class="wxBoxSizer">
-          <orient>wxVERTICAL</orient>
-          <object class="sizeritem">
-            <object class="wxBoxSizer">
-              <orient>wxHORIZONTAL</orient>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>矢印キーの移動量</label>
-                </object>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="unknown" name="TextSeek"/>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-            </object>
-          </object>
-          <object class="sizeritem">
-            <object class="wxBoxSizer">
-              <orient>wxHORIZONTAL</orient>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>矢印キー + Ctrl の移動量</label>
-                </object>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="unknown" name="TextSeekCtrl"/>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-            </object>
-          </object>
-          <object class="sizeritem">
-            <object class="wxBoxSizer">
-              <orient>wxHORIZONTAL</orient>
-              <object class="sizeritem">
-                <object class="wxStaticText">
-                  <label>矢印キー + Shift の移動量</label>
-                </object>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-              <object class="sizeritem">
-                <object class="unknown" name="TextSeekShift"/>
-                <flag>wxALL|wxALIGN_CENTRE_VERTICAL</flag>
-                <border>5</border>
-              </object>
-            </object>
-          </object>
-        </object>
-      </object>
-      <label>矢印キー移動</label>
-    </object>
-    <object class="propertysheetpage">
-      <object class="wxPanel">
-        <object class="wxBoxSizer">
-          <orient>wxVERTICAL</orient>
-          <object class="sizeritem">
-            <object class="wxStaticText">
-              <label>表示するボタン（表示の変更はソフトの再起動が必要です）</label>
-            </object>
-            <flag>wxALL</flag>
-            <border>5</border>
-          </object>
-          <object class="sizeritem">
-            <object class="wxGridSizer">
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_toolbar">
-                  <label>ツールバー</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_head">
-                  <label>先頭へ</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_play">
-                  <label>再生</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_playpause">
-                  <label>ポーズモード再生</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_playborder">
-                  <label>もしカット再生</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_pause">
-                  <label>一時停止</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_tail">
-                  <label>最後へ</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_zoomin">
-                  <label>拡大</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_zoomout">
-                  <label>縮小</label>
-                </object>
-              </object>
-              
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_cut">
-                  <label>ラベル分割</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_mergeleft">
-                  <label>左のラベルと結合</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_mergeright">
-                  <label>右のラベルと結合</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_undo">
-                  <label>元に戻す</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_redo">
-                  <label>やり直す</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_save">
-                  <label>ラベルの保存</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_insert">
-                  <label>ポーズの挿入</label>
-                </object>
-              </object>
-              <object class="sizeritem">
-                <object class="wxCheckBox" name="dsp_remove">
-                  <label>ラベルの削除</label>
-                </object>
-              </object>
-              <cols>3</cols>
-              <rows>7</rows>
-            </object>
-          </object>
-        </object>
-      </object>
-      <label>ツールバー</label>
-    </object>
-    <title>設定</title>
-    <buttons>wxOK|wxCANCEL</buttons>
-    <style>wxDEFAULT_DIALOG_STYLE|wxRESIZE_BORDER</style>
   </object>
 </resource>

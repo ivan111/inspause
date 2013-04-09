@@ -1,201 +1,218 @@
 # -*- coding: utf-8 -*-
+'''
+ラベル情報
+１つの音声に対するポーズ情報を表す。
+'''
 
 import re
 
-MIN_DUR = 0.1  # ラベルの最小長さ
-LBL_PAUSE = 'p'  # ポーズ挿入ラベル
-LBL_CUT = 'x'  # 選択範囲カットラベル
-LBL_SPEC = 's' # 指定した秒数ポーズ挿入ラベル
-
-NEAR_SEC = 0.1  # 近い隣接範囲を同時に動かすときに使用
+from label import Label, MIN_DUR_S
 
 
-class Label(object):
-    def __init__(self, start, end, label=LBL_PAUSE):
-        self.validate_time(start, end)
+NEAR_S  = 0.4  # 近い隣接範囲を同時に動かすときに使用
 
-        self._start = start
-        self._end = end
+ST_DISTINCTION = '-1'
+NO_DISTINCTION = -1  # 特徴位置がない
 
-        if label is None:
-            self._label = ''
-        else:
-            self._label = label
 
-        self.set_flag()
+# "1.234567    3.456789    p" などの文字列を分割するための正規表現
+label_re = re.compile(r'^(\d+(\.\d{0,6})?)\s+(\d+(\.\d{0,6})?)\s+(.*)')
 
-        if self._is_spec:
-            try:
-                f = float(label[1:])
-            except:
-                f = -1
-
-            if f < 0:
-                self._is_spec = false
-                self._dur = self._end - self._start
-            else:
-                self._dur = f
-        else:
-            self._dur = self._end - self._start
-
-    def change_to_pause(self):
-        if self._is_pause and not self._is_spec:
-            return
-
-        self._dur = self._end - self._start
-        self.label = LBL_PAUSE
-
-    def change_to_cut(self):
-        if self._is_cut:
-            return
-
-        self._dur = self._end - self._start
-        self.label = LBL_CUT
-
-    def change_to_spec(self, factor, add):
-        if self._is_spec:
-            return
-
-        dur = self._end - self._start
-        self._dur = dur * factor + add
-
-        self.label = '%s%.6f' % (LBL_SPEC, self._dur)
-
-    def __str__(self):
-        return '%.6f\t%.6f\t%s' % (self._start, self._end, self._label)
-
-    def set_flag(self):
-        if self._label == LBL_PAUSE:
-            self._is_pause = True
-            self._is_cut = False
-            self._is_spec = False
-        elif self._label == LBL_CUT:
-            self._is_pause = False
-            self._is_cut = True
-            self._is_spec = False
-        elif self._label.startswith('s'):
-            self._is_pause = True
-            self._is_cut = False
-            self._is_spec = True
-        else:
-            self._is_pause = False
-            self._is_cut = False
-            self._is_spec = False
-
-    def is_pause(self):
-        return self._is_pause
-
-    def is_cut(self):
-        return self._is_cut
-
-    def is_spec(self):
-        return self._is_spec
-
-    def shift(self, val):
-        self._start = self._start + val
-        self._end = self._end + val
-
-    def validate_time(self, start, end):
-        if start > end:
-            raise Exception('[Label] Error: start(%d) > end(%d)' %
-                            (start, end))
-
-    def get_start(self):
-        return self._start
-
-    def set_start(self, start):
-        self._start = max(0, min(start, self._end - MIN_DUR))
-        if not self._is_spec:
-            self._dur = self._end - self._start
-
-    start = property(get_start, set_start)
-
-    def get_end(self):
-        return self._end
-
-    def set_end(self, end):
-        self._end = max(self._start + MIN_DUR, end)
-        if not self._is_spec:
-            self._dur = self._end - self._start
-
-    end = property(get_end, set_end)
-
-    def get_label(self):
-        return self._label
-
-    def set_label(self, label):
-        if label is None:
-            self._label = ''
-        else:
-            self._label = label
-
-        self.set_flag()
-
-    label = property(get_label, set_label)
-
-    def get_dur(self):
-        return self._dur
-
-    dur = property(get_dur)
 
 class Labels(list):
+    '''
+    常に終了位置順でソートされている
+    '''
+
     def __init__(self, lines=None):
-        if not lines:
+        self.selected = None
+        self.distinction_s = NO_DISTINCTION  # 特徴位置。ずれ補正に使う
+
+        if lines is None:
             lines = []
 
-        self.selected = None
-        r = re.compile(r'^(\d+(\.\d{0,6})?)\s+(\d+(\.\d{0,6})?)\s+(.*)')
+        self._load_from_list(lines)
 
-        for line in lines:
-            m = r.search(line)
-            if m is None:
-                continue
-            st = float(m.group(1))
-            ed = float(m.group(3))
-            lbl = m.group(5).strip()
-            try:
-                label = Label(st, ed, lbl)
-            except:
-                continue
-            self.append(label)
-
-        self.sort(key=lambda label: label.end)
-
-        self.clean_data()
-
-    # LBL_CUTのラベルが他のラベルと重ならないように修正する
-    def clean_data(self):
-        if 1 <= len(self):
-            prev_label = self[0]
-
-        for label in self[1:]:
-            if label.start < prev_label.end:
-                if label.label == LBL_CUT:
-                    label.start = prev_label.end
-
-            prev_label = label
 
     def __str__(self):
         return '\n'.join([str(label) for label in self])
 
+
     def write(self, file_name):
-        self.sort(key=lambda label: label.end)
+        self._sort()
 
         f = open(file_name, 'w')
+
+        if self.distinction_s != NO_DISTINCTION:
+            s = '%s\t%d\t%.6f\n' % (ST_DISTINCTION, 0, self.distinction_s)
+            f.write(s)
+
         f.write(str(self))
+
         f.close()
 
-    # 指定した位置（秒）のラベルを選択する
-    # 重なっている場合はサイクリックに選択する
-    def select(self, sec):
-        found_labels = []
+
+    #--------------------------------------------------------------------------
+    # コマンド
+
+    # ---- ラベル挿入
+
+    def insert_label(self, pos_s, dur_s, max_s):
+        rng = self._get_insertable_range(pos_s, dur_s, max_s)
+
+        if rng is None:
+            return
+
+        if pos_s - rng[0] < dur_s / 2:
+            start = rng[0]
+            end = start + dur_s
+        elif rng[1] - pos_s < dur_s / 2:
+            end = rng[1]
+            start = end - dur_s
+        else:
+            start = pos_s - (dur_s / 2)
+            end = start + dur_s
+
+        label = Label(start, end)
+        self.append(label)
+        self.select_by_index(len(self) - 1)
+
+        self._sort()
+
+
+    def can_insert_label(self, pos_s, dur_s, max_s):
+        rng = self._get_insertable_range(pos_s, dur_s, max_s)
+
+        if rng is None:
+            return False
+        else:
+            return True
+
+
+    # ---- ラベルカット
+
+    def cut(self, pos_s):
+        cut_i = -1
+        new_label = None
+
+        for i, label in enumerate(self):
+            if label.contains(pos_s):
+                cut_i = i
+                new_label = Label(pos_s, label.end_s)
+                label.end_s = pos_s
+                break
+
+        if cut_i != -1:
+            self.insert(cut_i + 1, new_label)
+
+
+    def can_cut(self, pos_s):
         for label in self:
-            if (label.start <= sec) and (sec <= label.end):
+            if label.contains(pos_s):
+                # カット結果が狭い場合はカットできないようにする
+                if pos_s < label.start_s + 0.1 or label.end_s - 0.1 < pos_s:
+                    continue
+
+                return True
+
+        return False
+
+
+    # ---- ラベル結合
+
+    def merge_left(self):
+        prev_sel = self._get_prev_selected()
+
+        if prev_sel:
+            prev_sel.end_s = self.selected.end_s
+            self.remove(self.selected)
+            self.selected = prev_sel
+
+
+    def can_merge_left(self):
+        if self._get_prev_selected():
+            return True
+        else:
+            return False
+
+
+    def merge_right(self):
+        next_sel = self._get_next_selected()
+
+        if next_sel:
+            self.selected.end_s = next_sel.end_s
+            self.remove(next_sel)
+
+
+    def can_merge_right(self):
+        if self._get_next_selected():
+            return True
+        else:
+            return False
+
+
+    # ----
+
+    def shift(self, val_s):
+        for label in self:
+            label.shift(val_s)
+
+
+    def subtract(self):
+        '''
+        重なりをなくす
+        '''
+
+        if len(self) == 0:
+            return
+
+        prev = self[0]
+
+        for label in self[1:]:
+            if prev.end_s > label.start_s:
+                label.start_s = prev.end_s
+            elif (label.start_s < prev.start_s) and (prev.end_s < label.end_s):
+                label.start_s = prev.end_s
+
+            prev = label
+
+
+    def clean_data(self):
+        '''
+        カットラベルが他と重ならないように修正する
+        '''
+
+        if 1 <= len(self):
+            prev_label = self[0]
+
+        for label in self[1:]:
+            if label.start_s < prev_label.end_s:
+                if label.is_cut():
+                    label.start_s = prev_label.end_s
+
+            prev_label = label
+
+
+    #--------------------------------------------------------------------------
+    # 選択関連
+
+    def select(self, pos_s):
+        '''
+        指定した位置（秒）のラベルを選択する。
+        重なっている場合はサイクリックに選択する。
+        '''
+
+        found_labels = []
+
+        for label in self:
+            if label.contains(pos_s):
                 found_labels.append(label)
 
-        if 1 == len(found_labels):
+        if len(found_labels) == 0:
+            self.selected = None
+        elif len(found_labels) == 1:
             self.selected = found_labels[0]
-        elif 1 < len(found_labels):
+        elif len(found_labels) > 1:  # 重なりがある
             if self.selected is None:
                 self.selected = found_labels[0]
             elif self.selected not in found_labels:
@@ -206,11 +223,13 @@ class Labels(list):
                     i = 0
                 self.selected = found_labels[i]
 
-    def select_by_index(self, pos):
-        if pos < 0 or len(self) <= pos:
+
+    def select_by_index(self, pos_i):
+        if pos_i < 0 or len(self) <= pos_i:
             return
 
-        self.selected = self[pos]
+        self.selected = self[pos_i]
+
 
     def get_selected_index(self):
         if self.selected is None:
@@ -218,165 +237,163 @@ class Labels(list):
 
         return self.index(self.selected)
 
-    def insert_label(self, pos, dur, max_s):
-        if (pos < 0) or (max_s < pos):
-            return
 
-        prev_s = 0
-        next_s = max_s
-
-        for label in self:
-            if (label.start <= pos) and (pos <= label.end):
-                return
-
-            if label.end < pos:
-                prev_s = label.end
-
-            if (pos < label.start) and (label.start < next_s):
-                next_s = label.start
-
-        if dur < next_s - prev_s:
-            if pos - prev_s < dur / 2:
-                start = prev_s
-                end = start + dur
-            elif next_s - pos < dur / 2:
-                end = next_s
-                start = end - dur
-            else:
-                start = pos - (dur / 2)
-                end = start + dur
-
-            self.append(Label(start, end))
-            self.sort(key=lambda label: label.end)
-
-    def can_insert_label(self, pos, dur, max_s):
-        if (pos < 0) or (max_s < pos):
-            return False
-
-        prev_s = 0
-        next_s = max_s
-
-        for label in self:
-            if (label.start <= pos) and (pos <= label.end):
-                return False
-
-            if label.end < pos:
-                prev_s = label.end
-
-            if (pos < label.start) and (label.start < next_s):
-                next_s = label.start
-
-        if dur < next_s - prev_s:
-            return True
-        else:
-            return False
-
-    def shift(self, val):
-        for label in self:
-            label.shift(val)
-
-    def remove_sel(self):
-        if not self.selected:
+    def remove_selected(self):
+        if self.selected is None:
             return
 
         sel = self.selected
         self.selected = None
         self.remove(sel)
 
-    def save_sel(self):
-        if not self.selected:
+
+    def save_selected(self):
+        if self.selected is None:
             return
 
         sel = self.selected
-        sel.prev_start = sel.start
-        sel.prev_end = sel.end
+        sel.backup_start_s = sel.start_s
+        sel.backup_end_s   = sel.end_s
 
-    def restore_sel(self):
-        if not self.selected:
+
+    def restore_selected(self):
+        if self.selected is None:
             return
 
         sel = self.selected
-        sel.start = sel.prev_start
-        sel.end = sel.prev_end
+        sel.start_s = sel.backup_start_s
+        sel.end_s   = sel.backup_end_s
 
-    def change_sel(self, start, end=None, fit=False, near=False):
-        if not self.selected:
+
+    def change_selected(self, start_s=None, end_s=None, is_fit=False, is_near=False):
+        '''
+        選択されているラベルの範囲を変更する。
+        変更できる範囲：(１つ前のラベルの開始位置, １つ後のラベルの終了位置)
+        カットラベルは他のラベルの終了位置とは重ならない
+
+        @param is_fit  True なら隣接するラベルと重ならないように調整する。隣接するラベル範囲は変わらない。
+        @param is_near True なら隣接するラベルと重ならないように調整する。隣接するラベル範囲も変わる可能性がある。
+        '''
+
+        if self.selected is None:
             return
 
         sel = self.selected
 
-        if fit and near:
-            near = False
+        if is_fit and is_near:
+            is_near = False
 
-        if start:
-            prev_sel = self.get_prev_sel()
+        if start_s:
+            prev_sel = self._get_prev_selected()
 
-            if fit or (sel.label == LBL_CUT):
-                start = max(start, min(prev_sel.end, sel.end))
-            sel.start = min(start, sel.end - MIN_DUR)
+            if is_fit or sel.is_cut():
+                # 前のラベルと重ならないようにする
+                if prev_sel:
+                    start_s = max(prev_sel.end_s, start_s)
 
-            if near and (abs(prev_sel.end - sel.start) < NEAR_SEC):
-                prev_sel.end = max(prev_sel.start + MIN_DUR, sel.start)
+            sel.start_s = max(0, min(start_s, sel.end_s - MIN_DUR_S))
 
-        if end:
-            next_sel = self.get_next_sel()
+            if is_near:
+                # 前のラベルも重ならないように範囲を変更する
+                if prev_sel and (abs(prev_sel.end_s - sel.start_s) < NEAR_S):
+                    prev_sel.end_s = max(prev_sel.start_s + MIN_DUR_S, sel.start_s)
 
-            if next_sel and (fit or (next_sel.label == LBL_CUT)):
-                end = max(sel.start, min(end, next_sel.start))
-            elif next_sel:
-                end = max(sel.start, min(end, next_sel.end - 0.01))
-            sel.end = max(end, sel.start + MIN_DUR)
+        if end_s:
+            next_sel = self._get_next_selected()
 
-            if next_sel and near and \
-                    (abs(sel.end - next_sel.start) < NEAR_SEC):
-                next_sel.start = min(next_sel.end - MIN_DUR, sel.end)
+            if next_sel:
+                if is_fit or next_sel.is_cut():
+                    # 後ろのラベルと重ならないようにする
+                    end_s = min(end_s, next_sel.start_s)
+                else:
+                    # 後ろのラベルの終了位置と重ならないようにする
+                    end_s = min(end_s, next_sel.end_s - 0.01)
 
-    def can_cut(self, sec):
+            sel.end_s = max(end_s, sel.start_s + MIN_DUR_S)
+
+            if is_near:
+                # 後ろのラベルも重ならないように範囲を変更する
+                if next_sel and (abs(sel.end_s - next_sel.start_s) < NEAR_S):
+                    next_sel.start_s = min(next_sel.end_s - MIN_DUR_S, sel.end_s)
+
+
+    #--------------------------------------------------------------------------
+    # 内部メソッド
+
+    def _load_from_list(self, lines):
+
+        for line in lines:
+            if line.startswith(ST_DISTINCTION):  # 特徴位置
+                arr = line.split()
+                if len(arr) == 3:
+                    try:
+                        self.distinction_s = float(arr[-1])
+                    except:
+                        pass
+                continue
+
+            m = label_re.search(line)
+
+            if m is None:
+                continue
+
+            st = float(m.group(1))
+            ed = float(m.group(3))
+            lbl = m.group(5).strip()
+
+            try:
+                label = Label(st, ed, lbl)
+            except:
+                continue
+
+            self.append(label)
+
+        self._sort()
+
+        self.clean_data()
+
+
+    def _sort(self):
+        '''
+        終了位置順で並べ替え
+        '''
+
+        self.sort(key=lambda label: label.end_s)
+
+
+    def _get_insertable_range(self, pos_s, dur_s, max_s):
+        '''
+        ラベルを挿入可能な範囲を取得する
+        挿入できないなら None を返す
+        '''
+
+        if (pos_s < 0) or (max_s < pos_s) or (dur_s <= 0) or (max_s < dur_s):
+            return None
+
+        rng = [0, max_s]
+
         for label in self:
-            if (label.start < sec) and (sec < label.end):
-                return True
-        return False
+            if label.contains(pos_s):
+                return None
 
-    def cut(self, sec):
-        cut_i = -1
-        new_label = None
+            if label.end_s < pos_s:
+                rng[0] = label.end_s
 
-        for i, label in enumerate(self):
-            if (label.start < sec) and (sec < label.end):
-                cut_i = i
-                new_label = Label(sec, label.end)
-                label.end = sec
+            if pos_s < label.start_s:
+                rng[1] = label.start_s
                 break
 
-        if cut_i != -1:
-            self.insert(cut_i + 1, new_label)
-
-    def can_merge_left(self):
-        if self.get_prev_sel():
-            return True
+        if dur_s < rng[1] - rng[0]:
+            return rng
         else:
-            return False
+            return None
 
-    def merge_left(self):
-        prev_sel = self.get_prev_sel()
-        if prev_sel:
-            prev_sel.end = self.selected.end
-            self.remove(self.selected)
-            self.selected = prev_sel
 
-    def can_merge_right(self):
-        if self.get_next_sel():
-            return True
-        else:
-            return False
+    def _get_prev_selected(self):
+        '''
+        選択されているラベルの１つ前のラベルを返す
+        '''
 
-    def merge_right(self):
-        next_sel = self.get_next_sel()
-        if next_sel:
-            self.selected.end = next_sel.end
-            self.remove(next_sel)
-
-    def get_prev_sel(self):
         if not self.selected:
             return None
 
@@ -388,7 +405,11 @@ class Labels(list):
 
         return None
 
-    def get_next_sel(self):
+    def _get_next_selected(self):
+        '''
+        選択されているラベルの１つ後のラベルを返す
+        '''
+
         if not self.selected:
             return None
 
@@ -400,41 +421,3 @@ class Labels(list):
 
         return None
 
-    def get_overlapped(self, label):
-        overlapped = []
-
-        for lbl in self:
-            if (label is not lbl):
-                if (label.start < lbl.start and lbl.start < label.end) or \
-                        (label.start < lbl.end and lbl.end < label.end) or \
-                        (lbl.start < label.start and label.end < lbl.end):
-                    overlapped.append(lbl)
-
-        return overlapped
-
-    def subtract(self):
-        if len(self) == 0:
-            return
-
-        prev = self[0]
-
-        for label in self[1:]:
-            if (prev.start < label.start) and (label.start < prev.end):
-                label.start = prev.end
-            elif (label.start < prev.start) and (prev.end < label.end):
-                label.start = prev.end
-
-            prev = label
-
-    def is_sorted(self):
-        if len(self) == 0:
-            return True
-
-        prev = self[0]
-
-        for label in self[1:]:
-            if prev.end > label.end:
-                return False
-            prev = label
-
-        return True
