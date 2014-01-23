@@ -1,237 +1,213 @@
 # -*- coding: utf-8 -*-
+
 '''
-ボリューム表示
+ボリューム表示ウィンドウ
 '''
 
 import math
 import os
 
 import wx
-import wx_utils
 
-from mywave import FIND_RATE
+from bufferedwindow import BufferedWindow, BG_COLOUR
 
 
-EVT_CLICK_CUR_CHANGED_ID = wx.NewId()
-
-USE_BUFFERED_DC = True
-
-SCALE = 100  # 波形の下から何％を表示するか
 MIN_SCALE = 3
-MAX_VIEW_FACTOR = 4
-VIEW_FACTOR = MAX_VIEW_FACTOR / 2  # これで拡大率が決まる。表示レート = FIND_RATE / (1 << VIEW_FACTOR)
+MAX_VIEW_FACTOR = 16
 PPU = 20  # Pixels Per Unit
 
+# 色
+FG_COLOUR = '#4B87EB'  # 前景色
+OA_COLOUR = '#D3D3D3'  # 領域外の色
+POS_COLOUR = 'Red'  # 現在位置線の色
+
 # 矢印キーの移動量
-SEEK_S       = 0.002
-SEEK_CTRL_S  = 0.02
-SEEK_SHIFT_F = 1
+SEEK_S = 0.002
+SEEK_CTRL_S = 0.02
+SEEK_SHIFT_S = 1
 
-NO_WAV_MESSAGE1 = u'音声がありません'
-NO_WAV_MESSAGE2 = u'ここをクリックしてください'
+NO_WAV_MESSAGE1 = u'音声がありません。'
+NO_WAV_MESSAGE2 = u'ここをクリックしてください。'
 
 
-# http://wiki.wxpython.org/DoubleBufferedDrawing
-class VolumeWindow(wx.ScrolledWindow):
+class VolumeWindow(BufferedWindow):
     '''
     ボリューム表示ウィンドウ
     '''
 
-    binder = wx_utils.bind_manager()
+    binder = BufferedWindow.binder
 
     def __init__(self, *args, **kwargs):
-        kwargs['style'] = kwargs.setdefault('style', 0) | wx.NO_FULL_REPAINT_ON_RESIZE
-        wx.ScrolledWindow.__init__(self, *args, **kwargs)
-
-        self._init_instance_var_vw()
-
-        self.binder.bindall(self)
-
-        self.OnSize(None)
-
-
-    # オーバーライドされて変な動作しないように
-    # 後ろに _vm をつけたよ
-    def _init_instance_var_vw(self):
-        self._max_val = 0  # 表示することができるボリュームの最大値
-                      # これを超えるボリュームは頭の部分が途中で切れる
-
-        self.max_f = 0
-        self.max_s = 0
-
-        self.rate = FIND_RATE
-
-        self.num_update_draw_base = 0
-
-        self._playing = False
-
-        self.brush_text_bg = wx.Brush(wx.Colour(255, 255, 255, 128))
-
-        # draw_base で更新された場合 True
-        self.draw_base_changed = False
-
-        # _buffer_base を更新するか決めるための変数
-        self.prev_left_f = -1
-        self.prev_vol = None
-        self.prev_w = 0
-        self.prev_h = 0
-        self.prev_scale = 0
-
-        # ドラッグスクロール関連
-        self._drag_scroll = False
-        self._drag_scroll_left_f = 0
-
-        # 以下が True のときは、スクロールイベントを無視
-        self._size_changed = False
-        self._view_factor_changed = False
-
-        # 画面サイズ
-        self.w = 0  # 幅
-        self.h = 0  # 高さ
-
-        # ---- プロパティ用
-        self._wav = None
         self._vol = None
-        self._scale = SCALE
-        self._view_factor = VIEW_FACTOR
-        self._cur_s = 0
-        self._brush_bg = wx.BLACK_BRUSH
-        self._pen_fg = wx.BLACK_PEN
+        self._old_pos_i = -1
+        self._pos_f = 0
+        self._playing = False
+        self._cur_pos_pen = wx.Pen(POS_COLOUR)
 
+        # ---- 表示関連
+        self._view_factor = 1
+        self._scale = 100
 
-    def sec_to_str(self, sec):
-        m  = sec / 60
-        s  = int(sec) % 60
-        ms = int(sec * 1000) % 1000
+        # ---- ドラッグスクロール関連
+        self._ds_x = None
+        self._ds_left_i = None
 
-        time_str = '%01d:%02d.%03d' % (m, s, ms)
+        BufferedWindow.__init__(self, *args, **kwargs)
 
-        return time_str
+        self.SetForegroundColour(FG_COLOUR)
 
+        self.SetVolume(self._vol)
+
+        self.SetCallAfter(self.DrawCurPos)
+
+    def SetVolume(self, vol):
+        self._vol = vol
+
+        if vol:
+            rate = vol.base_rate / self._view_factor
+            vol.change_rate(rate)
+
+        self.update_scroll()
+
+        self._old_pos_i = -1
+        self.pos_f = 0
+
+    # ---- 変換
+
+    def f_to_s(self, f):
+        if self._vol:
+            return float(f) / self._vol.wav_rate
+        else:
+            return 0.0
+
+    def s_to_f(self, s):
+        if self._vol:
+            return int(s * self._vol.wav_rate)
+        else:
+            return 0
+
+    def f_to_i(self, f):
+        if self._vol:
+            return f * self._vol.rate / self._vol.wav_rate
+        else:
+            return 0
+
+    def i_to_f(self, s):
+        if self._vol:
+            return int(s * self._vol.wav_rate / self._vol.rate)
+        else:
+            return 0
+
+    def i_to_s(self, i):
+        if self._vol:
+            return float(i) / self._vol.rate
+        else:
+            return 0.0
+
+    def s_to_i(self, s):
+        if self._vol:
+            return int(s * self._vol.rate)
+        else:
+            return 0
 
     #--------------------------------------------------------------------------
     # 描画
 
-    def update_drawing(self, update_base=False):
-        '''
-        画面の更新。
-        ソフトウェア内で画面の更新が必要がになった場合は、このメソッドを呼ぶ。
-        '''
-
-        dc = wx.MemoryDC()
-        dc.SelectObject(self._buffer_base)
-        self.draw_base(dc, update_base)
-
-        del dc
-
-        dc = wx.MemoryDC()
-        dc.SelectObject(self._buffer)
-        self.draw(dc)
-
-        del dc  # Update() が呼ばれる前に MemoryDC を解放する必要がある
-
-        self.Refresh(eraseBackground=False)
-        self.Update()
-
-    def draw_base(self, dc, update_base):
-        '''
-        波形やラベルなど頻繁に変わらない部分を描く。
-        draw はこれをもとに描く。
-        '''
-
-        # なるべく更新しない努力をしてます
-        if not update_base and self.left_f == self.prev_left_f and \
-                self.vol is self.prev_vol and self.w == self.prev_w and \
-                self.h == self.prev_h and self.scale == self.prev_scale:
-            self.draw_base_changed = False
+    def Draw(self, dc, nlayer):
+        if nlayer != 1:
             return
 
-        self.prev_left_f = self.left_f
-        self.prev_vol    = self.vol
-        self.prev_w      = self.w
-        self.prev_h      = self.h
-        self.prev_scale  = self.scale
+        BufferedWindow.Draw(self, dc, 0)
 
-        self.draw_base_changed = True
-
-        self.num_update_draw_base += 1
-
-        dc.SetBackground(self._brush_bg)
-        dc.Clear()
-
-        if self.vol:
-            self._draw_volume(dc)
-            self._draw_out_of_area(dc)
+        if self._vol:
+            self.DrawVolume(dc)
+            self.DrawOutOfArea(dc)
         else:
-            self._draw_message(dc)
+            self.DrawMessage(dc)
 
-
-    def draw(self, dc):
-        dc.DrawBitmap(self._buffer_base, 0, 0)
-
-        dc = wx.GCDC(dc)
-
-        if self.vol:
-            self._draw_cur_position(dc)
-
-            # 現在位置の時間を表示
-            time_str = self.sec_to_str(self.cur_s)
-            cw, ch = dc.GetTextExtent(time_str)
-
-            dc.SetPen(wx.TRANSPARENT_PEN)
-            dc.SetBrush(self.brush_text_bg)
-            dc.DrawRectangle(8, 3, cw + 4, ch + 4)
-
-            dc.DrawText(time_str, 10, 5)
-
-
-    def _draw_volume(self, dc):
+    def DrawVolume(self, dc):
         '''
         ボリュームを描画
         '''
 
-        if self.max_val == 0:
-            return
-
         w, h = dc.Size
 
-        dc.SetPen(self._pen_fg)
+        dc.SetPen(wx.Pen(self.GetForegroundColour()))
+
+        max_val = int(float(self._vol.max_val) * self.scale / 100)
+        if max_val == 0:
+            max_val = 1  # 0で割ることを防ぐため
 
         for x in range(w):
-            i = self.left_f + x
-            if self.max_f < i:
+            i = self.left_i + x
+            if i >= len(self._vol):
                 break
-            v = h * float(self.vol[i]) / self.max_val
+            v = int(h * float(self._vol[i]) / max_val)
             v = min(v, h)
             dc.DrawLine(x, h, x, h - v)
 
-
-    def _draw_out_of_area(self, dc):
+    def DrawOutOfArea(self, dc):
         '''
-        波形が画面より小さいときに、波形以外の部分を表示する
+        波形領域外を描画
         '''
 
         w, h = dc.Size
 
-        max_x = self.max_f - self.left_f
+        max_x = len(self._vol) - self.left_i
         if max_x < w:
             dc.SetPen(wx.TRANSPARENT_PEN)
-            dc.SetBrush(wx.Brush('#D3D3D3'))
+            dc.SetBrush(wx.Brush(OA_COLOUR))
 
             dc.DrawRectangle(max_x, 0, w, h)
 
+    def DrawCurPos(self, from_pos_f_method=False):
+        '''
+        現在位置を描画
+        '''
 
-    def _draw_message(self, dc):
+        if self._vol is None:
+            return
+
+        dc = wx.ClientDC(self)
+        dc.SetPen(self._cur_pos_pen)
+
+        pos_i = self.pos_i
+        left_i = self.left_i
+        old_x = self._old_pos_i - left_i
+        new_x = pos_i - left_i
+
+        if self._old_pos_i != pos_i:
+            base_dc = self.GetTopLayerDC()
+
+            if self.playing:
+                # 再生中は新しい位置を描いてから古い位置を消す方がちらつかない
+
+                # 新しい位置を描く
+                dc.DrawLine(new_x, 0, new_x, self.h)
+
+                # 古い位置を消す
+                if 0 <= old_x < self.w:
+                    dc.Blit(old_x, 0, 1, self.h, base_dc, old_x, 0)
+            else:
+                # 古い位置を消す
+                old_x = self._old_pos_i - self.left_i
+                if 0 <= old_x < self.w:
+                    dc.Blit(old_x, 0, 1, self.h, base_dc, old_x, 0)
+
+                # 新しい位置を描く
+                dc.DrawLine(new_x, 0, new_x, self.h)
+
+            self._old_pos_i = pos_i
+        elif not from_pos_f_method:
+            # 新しい位置を描く
+            dc.DrawLine(new_x, 0, new_x, self.h)
+
+    def DrawMessage(self, dc):
         '''
         波形がないときのメッセージを描画
         '''
 
         w, h = dc.Size
-
-        old_color = dc.GetTextForeground()
-        bg = self._brush_bg.Colour
-        new_color = wx.Colour(~bg.Red() & 0xFF, ~bg.Green() & 0xFF, ~bg.Blue() & 0xFF)  # ビット反転した色
-        dc.SetTextForeground(new_color)
 
         cw, ch = dc.GetTextExtent(NO_WAV_MESSAGE1)
         x = (w - cw) / 2
@@ -243,31 +219,19 @@ class VolumeWindow(wx.ScrolledWindow):
         y = h / 2
         dc.DrawText(NO_WAV_MESSAGE2, x, y)
 
-        dc.SetTextForeground(old_color)
-
-
-    def _draw_cur_position(self, dc):
-        w, h = dc.Size
-
-        dc.SetPen(wx.Pen('#FF0000'))
-        cur_f = self.cur_f - self.left_f
-        dc.DrawLine(cur_f, 0, cur_f, h)
-
-
     #--------------------------------------------------------------------------
     # コマンド
 
     # ---- シーク
-
     def head(self):
         if not self.can_head():
             return
 
-        self.cur_f  = 0
-        self.left_f = 0
+        self.pos_f = 0
+        self.post_vw_pos_evt()
 
     def can_head(self):
-        if self.vol and self.cur_f != 0:
+        if self._vol and self._pos_f != 0:
             return True
         else:
             return False
@@ -276,95 +240,51 @@ class VolumeWindow(wx.ScrolledWindow):
         if not self.can_tail():
             return
 
-        self.cur_f = self.max_f
-        self.left_f = self.max_f
+        self.pos_f = self._vol.max_f
+        self.post_vw_pos_evt()
 
     def can_tail(self):
-        if self.vol and self.cur_f != self.max_f:
+        if self._vol and self.pos_i < self._vol.max_f:
             return True
         else:
             return False
 
-
     # ---- 拡大・縮小
-
     def zoom_in(self, x=0):
-        if not self.can_zoomin():
+        if not self.can_zoom_in():
             return
 
-        self.set_view_factor(self.view_factor - 1, x)
+        self.set_view_factor(self.view_factor / 2, x)
 
-    def can_zoomin(self):
-        if self.vol is None:
+    def can_zoom_in(self):
+        if self._vol and self.view_factor >= 2:
+            return True
+        else:
             return False
-
-        return self.view_factor - 1 >= 0
 
     def zoom_out(self, x=0):
-        if not self.can_zoomout():
+        if not self.can_zoom_out():
             return
 
-        self.set_view_factor(self.view_factor + 1, x)
+        self.set_view_factor(self.view_factor * 2, x)
 
-    def can_zoomout(self):
-        if self.vol is None:
+    def can_zoom_out(self):
+        if self._vol and self.view_factor * 2 <= MAX_VIEW_FACTOR:
+            return True
+        else:
             return False
 
-        return self.view_factor + 1 <= MAX_VIEW_FACTOR
-
-
     # ---- スクロール
-
     def pageup(self):
-        pos = self.GetScrollPos(wx.HORIZONTAL)
-        old_pos = pos
-
-        pos -= self.GetScrollPageSize(wx.HORIZONTAL)
-        pos = max(0, min(pos, self.GetScrollRange(wx.HORIZONTAL)))
-
-        if old_pos != pos:
-            self.SetScrollPos(wx.HORIZONTAL, pos)
-            self.update_drawing()
+        evt = wx.ScrollWinEvent(wx.wxEVT_SCROLLWIN_PAGEUP, self.GetId())
+        self.GetEventHandler().ProcessEvent(evt)
 
     def pagedown(self):
-        pos = self.GetScrollPos(wx.HORIZONTAL)
-        old_pos = pos
-
-        pos += self.GetScrollPageSize(wx.HORIZONTAL)
-        pos = max(0, min(pos, self.GetScrollRange(wx.HORIZONTAL)))
-
-        if old_pos != pos:
-            self.SetScrollPos(wx.HORIZONTAL, pos)
-            self.update_drawing()
-
+        evt = wx.ScrollWinEvent(wx.wxEVT_SCROLLWIN_PAGEDOWN, self.GetId())
+        self.GetEventHandler().ProcessEvent(evt)
 
     #--------------------------------------------------------------------------
     # イベントハンドラ
-
-    @binder(wx.EVT_SIZE)
-    def OnSize(self, evt):
-        self._size_changed = True
-
-        size = self.ClientSize
-        self.w = size[0]
-        self.h = size[1]
-
-        if self.prev_w != self.w or self.prev_h != self.h:
-            self._buffer = wx.EmptyBitmap(*size)
-            # 波形やラベルなど頻繁に変わらない部分
-            self._buffer_base = wx.EmptyBitmap(*size)
-
-        self.update_drawing()
-
-
-    @binder(wx.EVT_PAINT)
-    def OnPaint(self, evt):
-        if USE_BUFFERED_DC:
-            dc = wx.BufferedPaintDC(self, self._buffer)
-        else:
-            dc = wx.PaintDC(self)
-            dc.DrawBitmap(self._buffer, 0, 0)
-
 
     @binder(wx.EVT_SCROLLWIN)
     def OnScrollWin(self, evt):
@@ -380,23 +300,13 @@ class VolumeWindow(wx.ScrolledWindow):
         elif evt.EventType == wx.EVT_SCROLLWIN_PAGEDOWN.typeId:
             pos = pos + self.GetScrollPageSize(wx.HORIZONTAL)
         elif evt.EventType == wx.EVT_SCROLLWIN_THUMBTRACK.typeId:
-            self.track = True
             pos = evt.Position
-        elif evt.EventType == wx.EVT_SCROLLWIN_THUMBRELEASE.typeId:
-            if self._size_changed:
-                self._size_changed = False
-                evt.Skip()
-
-            if self._view_factor_changed:
-                self._view_factor_changed = False
-                evt.Skip()
 
         pos = max(0, min(pos, self.GetScrollRange(wx.HORIZONTAL)))
 
         if (old_pos != pos) or (os.name == 'posix'):
             self.SetScrollPos(wx.HORIZONTAL, pos)
-            self.update_drawing()
-
+            self.UpdateDrawing()
 
     @binder(wx.EVT_MOUSEWHEEL)
     def OnMouseWheel(self, evt):
@@ -405,241 +315,100 @@ class VolumeWindow(wx.ScrolledWindow):
         else:
             self.zoom_in(evt.X)
 
-
     @binder(wx.EVT_LEFT_DOWN)
     def OnLeftDown(self, evt):
         self.SetFocus()
 
-        if not self.vol:
+        if not self._vol:
+            self.post_open_snd_evt()
             return
 
         # 現在位置を変更
-        self.cur_f = self.left_f + evt.X
-        wx.PostEvent(self.Parent, ClickCurChangedEvent(self.cur_s))
+        self.pos_i = self.left_i + evt.X
+        self.UpdateDrawing(2)
+        self.post_vw_pos_evt()
 
         # ドラッグでスクロール
-        self._drag_scroll = evt.X
-        self._drag_scroll_left_f = self.left_f
+        self._ds_x = evt.X
+        self._ds_left_i = self.left_i
         self.CaptureMouse()
-
-        self.update_drawing()
-
 
     @binder(wx.EVT_LEFT_UP)
     def OnLeftUp(self, evt):
-        if self._drag_scroll:
+        if self.HasCapture():
             self.ReleaseMouse()
-
-        self._drag_scroll = False
-
+            self._ds_x = None
+            self._ds_left_i = None
 
     @binder(wx.EVT_MOTION)
     def OnMotion(self, evt):
-        if self.vol is None:
-            return
-
         # ドラッグでスクロール
-        if self._drag_scroll:
-            self.left_f = self._drag_scroll_left_f + (self._drag_scroll - evt.X)
-            self.update_drawing()
-
-
-    @binder(wx.EVT_MOUSE_CAPTURE_LOST)
-    def OnCaptureLost(self, evt):
-        if self._drag_scroll:
-            self.ReleaseMouse()
-            self._drag_scroll = False
-
+        if self._ds_x is not None and self.HasCapture():
+            self.left_i = self._ds_left_i + (self._ds_x - evt.X)
 
     @binder(wx.EVT_KEY_DOWN)
     def OnKeyDown(self, evt):
-        if self.vol is None:
+        if self._vol is None:
             return
 
         key = evt.GetKeyCode()
 
-        if key == wx.WXK_NUMPAD_ADD:
+        if key == wx.WXK_SPACE:
+            if self.playing:
+                self.post_pause_evt()
+            else:
+                self.post_play_evt()
+        elif key == wx.WXK_NUMPAD_ADD:
             self.zoom_in()
         elif key == wx.WXK_NUMPAD_SUBTRACT:
             self.zoom_out()
         elif key == wx.WXK_PAGEUP:
+            if self.playing:
+                return
+
             self.pageup()
         elif key == wx.WXK_PAGEDOWN:
+            if self.playing:
+                return
+
             self.pagedown()
         elif key == wx.WXK_HOME:
-            self.head()
+            self.pos_f = 0
+            self.post_vw_pos_evt()
         elif key == wx.WXK_END:
-            self.tail()
+            if self.playing:
+                return
+
+            pos = self.GetScrollRange(wx.HORIZONTAL)
+            self.SetScrollPos(wx.HORIZONTAL, pos)
+            self.UpdateDrawing()
+        elif key == wx.WXK_UP:
+            self.scale -= 1
+        elif key == wx.WXK_DOWN:
+            self.scale += 1
         elif key == wx.WXK_LEFT or key == wx.WXK_RIGHT:
-            if self.vol:
-                seek_s = 0
+            if self.playing:
+                return
 
-                if evt.ControlDown():
-                    seek_s = SEEK_CTRL_S
-                elif evt.ShiftDown():
-                    seek_s = self.f_to_s(SEEK_SHIFT_F)
+            seek_s = 0
+
+            if evt.ControlDown():
+                seek_s = SEEK_CTRL_S
+            elif evt.ShiftDown():
+                seek_s = SEEK_SHIFT_S
+            else:
+                seek_s = SEEK_S
+
+            if seek_s != 0:
+                if key == wx.WXK_LEFT:
+                    self.pos_s -= seek_s
                 else:
-                    seek_s = SEEK_S
+                    self.pos_s += seek_s
 
-                if seek_s != 0:
-                    if key == wx.WXK_LEFT:
-                        self.cur_s -= seek_s
-                    else:
-                        self.cur_s += seek_s
-
-                    wx.PostEvent(self.Parent, ClickCurChangedEvent(self.cur_s))
-
+                self.post_vw_pos_evt()
 
     #--------------------------------------------------------------------------
     # プロパティ
-
-    # ---- 音声
-
-    @property
-    def wav(self):
-        return self._wav
-
-    @wav.setter
-    def wav(self, wav):
-        self._wav = wav
-        self._cur_s = 0
-        self.view_factor = self._view_factor
-        self.left_f = 0
-
-        if wav is None:
-            self.SetScrollbars(PPU, 0, 0, 0)
-            self.update_drawing()
-
-
-    # ---- 現在の拡大率に合ったボリュームデータ
-
-    @property
-    def vol(self):
-        return self._vol
-
-    @vol.setter
-    def vol(self, vol):
-        self._vol = vol
-        self.max_f = len(vol) - 1
-        self.max_s = self.f_to_s(self.max_f)
-        self.scale = self._scale  # ここで画面が更新される
-        self.SetScrollbars(PPU, 0, math.ceil(float(self.max_f) / PPU), 0)
-
-
-    # ---- 表示範囲
-
-    @property
-    def scale(self):
-        return self._scale
-
-    @scale.setter
-    def scale(self, scale):
-        self._scale = max(MIN_SCALE, min(scale, 100))
-
-        if not self.vol:
-            return
-
-        percent = self._scale / 100.0
-        self.max_val = max(self.vol) * percent
-        self.update_drawing()
-
-
-    # ---- 拡大率
-
-    def get_view_factor(self):
-        return self._view_factor
-
-    def set_view_factor(self, view_factor, x=0):
-        '''
-        @param x この X 座標を中心として拡大・縮小する
-        '''
-
-        if x == 0:
-            prev_left_s = self.left_s
-        else:
-            x = max(0, min(x, self.w))
-            x_s = self.f_to_s(self.left_f + x)
-
-        view_factor = max(0, min(view_factor, MAX_VIEW_FACTOR))
-
-        self._view_factor = view_factor
-
-        self._view_factor_changed = True
-
-        self.rate = FIND_RATE / (1 << view_factor)
-
-        if not self.wav:
-            self._vol = None
-            return
-
-        self.vol = self.wav.calc_volume(view_factor)
-
-        if x == 0:
-            self.left_s = prev_left_s
-        else:
-            self.left_f = self.s_to_f(x_s) - x
-
-    view_factor = property(get_view_factor, set_view_factor)
-
-
-    # ---- 左位置（フレーム）
-
-    @property
-    def left_f(self):
-        return self.GetScrollPos(wx.HORIZONTAL) * PPU
-
-    @left_f.setter
-    def left_f(self, left_f):
-        if self.wav is None:
-            return
-
-        max_left_f = max(0, self.max_f - self.w)
-        left_f = max(0, min(left_f, max_left_f))
-        pos = max(0, math.ceil(float(left_f) / PPU))
-
-        self.SetScrollPos(wx.HORIZONTAL, pos)
-
-        self.update_drawing()
-
-
-    # ---- 左位置（秒）
-
-    @property
-    def left_s(self):
-        return self.f_to_s(self.left_f)
-
-    @left_s.setter
-    def left_s(self, left_s):
-        self.left_f = self.s_to_f(left_s)
-
-
-    # ---- 現在位置（フレーム）
-
-    @property
-    def cur_f(self):
-        return self.s_to_f(self.cur_s)
-
-    @cur_f.setter
-    def cur_f(self, cur_f):
-        self.cur_s = self.f_to_s(cur_f)
-
-
-    # ---- 現在位置（秒）
-
-    @property
-    def cur_s(self):
-        return self._cur_s
-
-    @cur_s.setter
-    def cur_s(self, cur_s):
-        self._cur_s = max(0, min(cur_s, self.max_s))
-
-        cur_f = self.cur_f
-        if (cur_f < self.left_f) or (self.left_f + self.w < cur_f):
-            self.left_f = cur_f
-
-        self.update_drawing()
-
 
     # ---- 再生中か？
 
@@ -651,71 +420,251 @@ class VolumeWindow(wx.ScrolledWindow):
     def playing(self, is_playing):
         self._playing = is_playing
 
-
-    # ---- 背景色
-
-    @property
-    def bg_color(self):
-        bg = self._brush_bg.Colour
-        return '#%02X%02X%02X' % (bg.Red(), bg.Green(), bg.Blue())
-
-    @bg_color.setter
-    def bg_color(self, color):
-        self._brush_bg = wx.Brush(color)
-        self.update_drawing(True)
-
-
-    # ---- 前景色
+    # ---- 表示範囲
 
     @property
-    def fg_color(self):
-        fg = self._pen_fg.Colour
-        return '#%02X%02X%02X' % (fg.Red(), fg.Green(), fg.Blue())
+    def scale(self):
+        return self._scale
 
-    @fg_color.setter
-    def fg_color(self, color):
-        self._pen_fg = wx.Pen(color)
-        self.update_drawing(True)
+    @scale.setter
+    def scale(self, scale):
+        scale = max(MIN_SCALE, min(scale, 100))
+
+        if self._scale == scale:
+            return scale
+
+        self._scale = scale
+
+        self.UpdateDrawing()
+
+        self.post_scale_change_evt()
+
+    # ---- 拡大率
+
+    def get_view_factor(self):
+        return self._view_factor
+
+    def set_view_factor(self, view_factor, x=0):
+        '''
+        @param x この X 座標を中心として拡大・縮小する
+        '''
+
+        view_factor = max(1, min(view_factor, MAX_VIEW_FACTOR))
+
+        if self._view_factor == view_factor:
+            return
+
+        if self._vol is None:
+            self._view_factor = view_factor
+            return
+
+        left_i = self.get_new_left_i(self._view_factor, view_factor, x)
+
+        self._view_factor = view_factor
+
+        rate = self._vol.base_rate / self._view_factor
+        self._vol.change_rate(rate)
+
+        self.update_scroll(left_i)
+
+    # set_view_factor は関数としても使うので
+    # この方法でプロパティをつくる
+    view_factor = property(get_view_factor, set_view_factor)
+
+    # ---- 左位置（インデックス）
+
+    @property
+    def left_i(self):
+        return self.GetScrollPos(wx.HORIZONTAL) * PPU
+
+    @left_i.setter
+    def left_i(self, left_i):
+        if self._vol is None:
+            return
+
+        old_pos = self.GetScrollPos(wx.HORIZONTAL)
+
+        max_left_i = max(0, len(self._vol) - self.w)
+        left_i = max(0, min(left_i, max_left_i))
+        new_pos = max(0, left_i / PPU)
+
+        if old_pos != new_pos:
+            self.SetScrollPos(wx.HORIZONTAL, new_pos)
+            self.UpdateDrawing()
+
+    # ---- 左位置（秒）
+
+    @property
+    def left_s(self):
+        return self.i_to_s(self.left_i)
+
+    @left_s.setter
+    def left_s(self, left_s):
+        self.left_i = self.s_to_i(left_s)
+
+    # ---- 現在位置（フレーム）
+
+    @property
+    def pos_f(self):
+        return self._pos_f
+
+    @pos_f.setter
+    def pos_f(self, pos_f):
+        if self._vol is None:
+            return 0
+
+        left_i = self.left_i
+        old_x = self._pos_f - left_i
+
+        self._pos_f = max(0, min(int(pos_f), self._vol.max_f))
+
+        # 現在位置が画面外だったら画面内になるようにする
+        pos_i = self.pos_i
+        if (pos_i < left_i) or (left_i + self.w < pos_i):
+            self.left_i = pos_i
+            return
+
+        self.DrawCurPos(True)
+
+    # ---- 現在位置（インデックス）
+
+    @property
+    def pos_i(self):
+        return self.f_to_i(self._pos_f)
+
+    @pos_i.setter
+    def pos_i(self, pos_i):
+        self.pos_f = self.i_to_f(pos_i)
+
+    # ---- 現在位置（秒）
+
+    @property
+    def pos_s(self):
+        return self.f_to_s(self._pos_f)
+
+    @pos_s.setter
+    def pos_s(self, pos_s):
+        self.pos_f = self.s_to_f(pos_s)
+
+    #--------------------------------------------------------------------------
+    # 内部メソッド
+
+    def update_scroll(self, new_left_i=0):
+        vol = self._vol or []
+
+        no_units = math.ceil(float(len(vol)) / PPU)
+        self.SetScrollbars(PPU, 0, no_units, 0)
+
+        pos = math.ceil(float(new_left_i) / PPU)
+        self.SetScrollPos(wx.HORIZONTAL, pos)
+
+        self.UpdateDrawing()
+
+    def get_new_left_i(self, old_view_factor, new_view_factor, x):
+        old_rate = self._vol.base_rate / old_view_factor
+        new_rate = self._vol.base_rate / new_view_factor
+
+        old_i = self.left_i + x
+        s = float(old_i) / old_rate
+        new_i = int(s * new_rate)
+
+        return new_i - x
+
+    # ---- イベント
+
+    def post_open_snd_evt(self):
+        evt = VolumeWindowEvent(myEVT_OPEN_SND, self.GetId())
+        self.GetEventHandler().ProcessEvent(evt)
+
+    def post_vw_pos_evt(self):
+        evt = VolumeWindowEvent(myEVT_VW_POS_CHANGE, self.GetId())
+        evt.SetPos(self.pos_f)
+        self.GetEventHandler().ProcessEvent(evt)
+
+    def post_pause_evt(self):
+        evt = VolumeWindowEvent(myEVT_REQ_PAUSE, self.GetId())
+        self.GetEventHandler().ProcessEvent(evt)
+
+    def post_play_evt(self):
+        evt = VolumeWindowEvent(myEVT_REQ_PLAY, self.GetId())
+        self.GetEventHandler().ProcessEvent(evt)
+
+    def post_scale_change_evt(self):
+        evt = VolumeWindowEvent(myEVT_SCALE_CHANGE, self.GetId(), self.scale)
+        self.GetEventHandler().ProcessEvent(evt)
 
 
-    def f_to_s(self, f):
-        return float(f) / self.rate
+#------------------------------------------------------------------------------
+# イベント
+#------------------------------------------------------------------------------
 
-    def s_to_f(self, s):
-        return int(s * self.rate)
+# ---- イベントタイプ
+myEVT_OPEN_SND = wx.NewEventType()
+myEVT_VW_POS_CHANGE = wx.NewEventType()
+myEVT_REQ_PAUSE = wx.NewEventType()
+myEVT_REQ_PLAY = wx.NewEventType()
+myEVT_SCALE_CHANGE = wx.NewEventType()
+
+# ---- イベントバインダ
+EVT_OPEN_SND = wx.PyEventBinder(myEVT_OPEN_SND, 1)
+EVT_VW_POS_CHANGE = wx.PyEventBinder(myEVT_VW_POS_CHANGE, 1)
+EVT_REQ_PAUSE = wx.PyEventBinder(myEVT_REQ_PAUSE, 1)
+EVT_REQ_PLAY = wx.PyEventBinder(myEVT_REQ_PLAY, 1)
+EVT_SCALE_CHANGE = wx.PyEventBinder(myEVT_SCALE_CHANGE, 1)
 
 
-class ClickCurChangedEvent(wx.PyEvent):
-    def __init__(self, cur_s):
-        wx.PyEvent.__init__(self)
-        self.SetEventType(EVT_CLICK_CUR_CHANGED_ID)
-        self.cur_s = cur_s
+class VolumeWindowEvent(wx.PyCommandEvent):
+    def __init__(self, event_type, id, pos_f=0):
+        wx.PyCommandEvent.__init__(self, event_type, id)
+        self.SetPos(pos_f)
 
+    def GetPos(self):
+        return self.pos_f
+
+    def SetPos(self, pos_f):
+        self.pos_f = pos_f
 
 
 if __name__ == '__main__':
-    from mywave import MyWave
+    import pausewave
+    from volume import Volume
 
-    def main():
-        app = TestVolumeWindow(redirect=True, filename='log_volumewindow.txt')
-        app.MainLoop()
+    def sec_to_str(sec):
+        m = sec / 60
+        s = int(sec) % 60
+        ms = int(sec * 1000) % 1000
 
-    class TestVolumeWindow(wx.App):
-        def OnInit(self):
-            frame = wx.Frame(None, -1, 'TestVolumeWindow')
-            panel = wx.Panel(frame)
+        time_str = '%01d:%02d.%03d' % (m, s, ms)
 
-            layout = wx.BoxSizer(wx.HORIZONTAL)
-            panel.SetSizer(layout)
+        return time_str
 
-            window = VolumeWindow(panel)
-            wav = MyWave('in.wav', '001.txt')
-            window.wav = wav
-            layout.Add(window, proportion=1, flag=wx.EXPAND)
+    class MyFrame(wx.Frame):
+        def __init__(self):
+            wx.Frame.__init__(self, None)
 
-            frame.Centre()
-            frame.Show()
+            wav = pausewave.open('in.mp3')
+            vol = Volume(wav)
 
-            return True
+            win = VolumeWindow(parent=self, id=-1)
+            self.statusbar = self.CreateStatusBar()
+            self.Bind(EVT_VW_POS_CHANGE, self.OnVwPosChange)
+            self.Bind(EVT_REQ_PLAY, self.OnReqPlay)
+            self.Bind(EVT_REQ_PAUSE, self.OnReqPause)
+            win.SetVolume(vol)
+            self.win = win
 
-    main()
+        def OnVwPosChange(self, event):
+            pos_s = self.win.f_to_s(event.GetPos())
+            time_str = sec_to_str(pos_s)
+            self.statusbar.SetStatusText(time_str)
+
+        def OnReqPlay(self, event):
+            print 'play'
+
+        def OnReqPause(self, event):
+            print 'pause'
+
+    app = wx.PySimpleApp()
+    frame = MyFrame()
+    frame.Show(True)
+    app.MainLoop()

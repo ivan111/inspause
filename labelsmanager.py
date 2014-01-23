@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 '''
-ƒ‰ƒxƒ‹ŠÇ—
+ãƒ©ãƒ™ãƒ«ç®¡ç†
 
-ƒ‰ƒxƒ‹‚Ì•ÏX‚ğ‚à‚Æ‚É–ß‚¹‚é‚æ‚¤‚ÉŠÇ—‚·‚é
+ãƒ©ãƒ™ãƒ«ã®å¤‰æ›´ã‚’å…ƒã«æˆ»ã›ã‚‹ã‚ˆã†ã«ç®¡ç†ã™ã‚‹
 '''
 
 import copy
@@ -12,7 +12,6 @@ class LabelsManager(object):
     def __init__(self, labels):
         self.i = 0
         self.labels_list = [labels]
-
 
     def __str__(self):
         result = 'Current Index : %d\n\n' % self.i
@@ -24,13 +23,11 @@ class LabelsManager(object):
 
         return result
 
-
     def __call__(self):
         return self.labels
 
-
     #--------------------------------------------------------------------------
-    # ƒRƒ}ƒ“ƒh
+    # ã‚³ãƒãƒ³ãƒ‰
 
     def save(self):
         if self.i + 1 < len(self.labels_list):
@@ -39,39 +36,32 @@ class LabelsManager(object):
         self.labels_list.append(labels)
         self.i = self.i + 1
 
-
     def clear_history(self):
         labels = self.labels
         self.i = 0
         self.labels_list = [labels]
-
 
     def restore(self):
         if 0 < self.i:
             self.labels_list.pop(self.i)
             self.i = self.i - 1
 
-
     def undo(self):
         self.i = max(0, self.i - 1)
-
 
     def can_undo(self):
         return self.i != 0
 
-
     def redo(self):
         self.i = min(self.i + 1, len(self.labels_list))
-
 
     def can_redo(self):
         return self.i != len(self.labels_list) - 1
 
-
     #--------------------------------------------------------------------------
-    # ƒvƒƒpƒeƒB
+    # ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£
 
-    # ---- ƒ‰ƒxƒ‹
+    # ---- ãƒ©ãƒ™ãƒ«
 
     @property
     def labels(self):
@@ -80,4 +70,3 @@ class LabelsManager(object):
     @labels.setter
     def labels(self, labels):
         self.labels_list[self.i] = labels
-

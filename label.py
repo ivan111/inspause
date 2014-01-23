@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 '''
 ラベル
 
@@ -7,37 +8,31 @@
 
 MIN_DUR_S = 0.1  # ラベルの最小長さ（秒）
 LBL_PAUSE = 'p'  # ポーズ挿入ラベル
-LBL_CUT   = 'x'  # 選択範囲カットラベル
-LBL_SPEC  = 's'  # 固定ポーズ挿入ラベル。******** 廃止 ********
+LBL_CUT = 'x'  # 選択範囲カットラベル
 
 
 class Label(object):
+
     def __init__(self, start_s, end_s, label=LBL_PAUSE):
-        self._color = None
+        self._colour = None
         self._init_pos(start_s, end_s)
         self.label = label
-
 
     def __str__(self):
         # （例）"3.134283    9.482720    p"
         return '%.6f\t%.6f\t%s' % (self._start_s, self._end_s, self._label)
 
-
     def is_pause(self):
         return self.label == LBL_PAUSE
-
 
     def is_cut(self):
         return self.label == LBL_CUT
 
-
     def set_pause(self):
         self.label = LBL_PAUSE
 
-
     def set_cut(self):
         self.label = LBL_CUT
-
 
     def contains(self, pos_s):
         '''
@@ -49,28 +44,15 @@ class Label(object):
         else:
             return False
 
-
     def shift(self, val_s):
         '''
         ラベルをずらす
         '''
 
         self._start_s += val_s
-        self._end_s   += val_s
+        self._end_s += val_s
 
-        self._color = None
-
-
-    def _init_pos(self, start_s, end_s):
-        start_s = max(0, start_s)
-        end_s   = max(0, end_s)
-
-        if start_s + MIN_DUR_S > end_s:
-            end_s = start_s + MIN_DUR_S
-
-        self._start_s = start_s
-        self._end_s   = end_s
-
+        self._colour = None
 
     #--------------------------------------------------------------------------
     # プロパティ
@@ -84,8 +66,7 @@ class Label(object):
     @start_s.setter
     def start_s(self, start_s):
         self._start_s = max(0, min(start_s, self._end_s - MIN_DUR_S))
-        self._color = None
-
+        self._colour = None
 
     # ---- 終了位置（秒）
 
@@ -96,8 +77,7 @@ class Label(object):
     @end_s.setter
     def end_s(self, end_s):
         self._end_s = max(self._start_s + MIN_DUR_S, end_s)
-        self._color = None
-
+        self._colour = None
 
     # ---- ラベル
 
@@ -112,26 +92,37 @@ class Label(object):
         else:
             self._label = LBL_PAUSE
 
-
     # ---- 長さ（秒）
 
     @property
     def dur_s(self):
         return self.end_s - self.start_s
 
-
     # ---- 色。長さに応じて色が変わる
 
     @property
-    def color(self):
-        if not self._color:
-            wavelength = self.dur_s *  60 + 380  # 8 秒が 780 になるように調整する
+    def colour(self):
+        if not self._colour:
+            wavelength = self.dur_s * 60 + 380  # 8 秒が 780 になるように調整する
             if wavelength > 780:
-                self._color = [255, 0, 0]
+                self._colour = [255, 0, 0]
             else:
-                self._color = wav2RGB(wavelength)
+                self._colour = wav2RGB(wavelength)
 
-        return self._color
+        return self._colour
+
+    #--------------------------------------------------------------------------
+    # 内部メソッド
+
+    def _init_pos(self, start_s, end_s):
+        end_s = max(0, end_s)
+        start_s = max(0, min(start_s, end_s))
+
+        #if start_s + MIN_DUR_S > end_s:
+        #    end_s = start_s + MIN_DUR_S
+
+        self._start_s = start_s
+        self._end_s = end_s
 
 
 # 波長からRGBを得る
@@ -181,4 +172,3 @@ def wav2RGB(wavelength):
     SSS *= 255
 
     return [int(SSS*R), int(SSS*G), int(SSS*B)]
-

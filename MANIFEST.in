@@ -1,0 +1,12 @@
+include icon/*
+include backup/*
+include tests/*.py
+include tests/data/*
+include DEV_NOTE.md
+include README.md
+include CHANGES.md
+include LICENSE.txt
+include gui.xrc
+include icon.ico
+include inspause_template.wxs
+include MANIFEST.in

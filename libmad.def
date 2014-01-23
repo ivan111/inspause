@@ -1,9 +1,0 @@
-EXPORTS
-
-;
-open @1
-close @2
-getnchannels @3
-getsampwidth @4
-getframerate @5
-readframes @6

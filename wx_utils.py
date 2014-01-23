@@ -2,7 +2,8 @@
 
 # Module: wx_utils.py
 # Author: Noboru Irieda(Handle Name NoboNobo)
-# �K�v�Ȃ��̂��폜��R�[�h�X�^�C���������ύX: vanya
+# http://python.matrix.jp/pages/projects/wxPython/helper.html
+# 必要ないのを削除やコードスタイルを少し変更: vanya
 
 from wx.xrc import XRCID, XRCCTRL
 
@@ -90,5 +91,4 @@ class bind_manager:
 
     @parent.setter
     def parent(self, parent):
-        print parent
         self.parents[hash(self)] = parent
