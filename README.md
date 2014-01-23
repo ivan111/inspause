@@ -1,176 +1,176 @@
-���s�[�e�B���O�p�����쐬�\�t�g"InsPause" ver NEET(2.10.0)
+リピーティング用音声作成ソフト"InsPause" ver NEET(2.10.0)
 ===============================================================================
 
-���̃\�t�g��Berryz�H�[�̓��i��ޔ�����ɕ����܂��B
-                                        CherryBoyz�H�[�̃��[�_�[ ���[�j��
+このソフトをBerryz工房の徳永千奈美さんに捧げます。
+                                        CherryBoyz工房のリーダー ワーニャ
 
-���ڎ���
-* �@�\
-* �����
-* �C���X�g�[��
-* �A���C���X�g�[��
-* ���s���@
-* wav�ȊO�imp3, aac, ogg�Ȃǁj�̌`�������������ꍇ
-* �V���[�g�J�b�g�L�[
-* ���C�Z���X
-* ���
+＜目次＞
+* 機能
+* 動作環境
+* インストール
+* アンインストール
+* 実行方法
+* wav以外（mp3, aac, oggなど）の形式も扱いたい場合
+* ショートカットキー
+* ライセンス
+* 作者
 * THANKS
-* �ύX����
-* �J���Ҍ������
+* 変更履歴
+* 開発者向け情報
 
 
-�@�\
+機能
 -------------------------------------------------------------------------------
 
-repeating�p�̉������쐬���邽�߂�software�ł��B
-CD����rip����sound��Download����sound��load���A�߂�sentence�̏I���ʒu��
-�����I�Ɍ���pause�i�����j��insert���܂��B
+repeating用の音声を作成するためのsoftwareです。
+CDからripしたsoundやDownloadしたsoundをloadし、節やsentenceの終了位置を
+自動的に見つけpause（無音）をinsertします。
 
 
-�����
+動作環境
 -------------------------------------------------------------------------------
 
 Windows, Mac, Linux
 
 
-�C���X�g�[��
+インストール
 -------------------------------------------------------------------------------
 
-���C���X�g�[���Ł�
-�_�E�����[�h�����t�@�C�������s���邾���ł��B
+＜インストーラ版＞
+ダウンロードしたファイルを実行するだけです。
 
-��Windows��zip�Ł�
-�_�E�����[�h�����t�@�C�����𓀂��Ăł����t�H���_���D���ȏꏊ��
-�u���Ă��������B
+＜Windowsのzip版＞
+ダウンロードしたファイルを解凍してできたフォルダを好きな場所に
+置いてください。
 
-���\�[�X�t�@�C���Ł�
-zip�łƓ����ł��B
+＜ソースファイル版＞
+zip版と同じです。
 
 
-�A���C���X�g�[��
+アンインストール
 -------------------------------------------------------------------------------
 
-���\�t�g���̂̍폜��
-�C���X�g�[�����g���ăC���X�g�[���������́A�X�^�[�g���j���[����
-�uUninstall inspause�v��I�����ăA���C���X�g�[�����邩�A
-Windows�̃R���g���[���p�l������A���C���X�g�[�����܂��B
+＜ソフト自体の削除＞
+インストーラを使ってインストールした方は、スタートメニューから
+「Uninstall inspause」を選択してアンインストールするか、
+Windowsのコントロールパネルからアンインストールします。
 
-�C���X�g�[�����g���ĂȂ��ꍇ�́A�C���X�g�[�����ɔz�u�����t�H���_��
-�폜���Ă��������B
-�ݒ�t�@�C���������I�ɍ쐬����Ă���̂ł�����폜���܂��B
-�ݒ�t�H���_�̏ꏊ�͈ȉ��̂Ƃ���ł��B
-Windows: �}�C�h�L�������g��inspause�t�H���_
-����ȊO: �z�[���f�B���N�g����.inspause�t�H���_
-
-
-���f�[�^�̍폜��
-�}�C�h�L�������g��inspause�t�H���_�Ƀf�[�^���c���Ă���̂Ŏ蓮��
-�폜���Ă��������BWindows�ȊO�̕��̓z�[���f�B���N�g���̒��́u.inspause�v
-�f�B���N�g�����f�[�^�t�H���_�ɂȂ�܂��B
+インストーラを使ってない場合は、インストール時に配置したフォルダを
+削除してください。
+設定ファイルも自動的に作成されているのでそれも削除します。
+設定フォルダの場所は以下のとおりです。
+Windows: マイドキュメントのinspauseフォルダ
+それ以外: ホームディレクトリの.inspauseフォルダ
 
 
-��ffmpeg.exe�̍폜��
-ffmpeg.exe��inspause�̃A�v���P�[�V�����t�H���_�ɓ���Ă���ꍇ��
-������蓮�ō폜���Ă��������B
+＜データの削除＞
+マイドキュメントのinspauseフォルダにデータが残っているので手動で
+削除してください。Windows以外の方はホームディレクトリの中の「.inspause」
+ディレクトリがデータフォルダになります。
+
+
+＜ffmpeg.exeの削除＞
+ffmpeg.exeをinspauseのアプリケーションフォルダに入れている場合は
+それも手動で削除してください。
 
 
 
-���s���@
+実行方法
 -------------------------------------------------------------------------------
 
-���C���X�g�[���Ł�
-�f�X�N�g�b�v��inspause�t�@�C�����_�u���N���b�N���邩�A
-�X�^�[�g���j���[����inspause��I�����Ď��s���܂��B
+＜インストーラ版＞
+デスクトップのinspauseファイルをダブルクリックするか、
+スタートメニューからinspauseを選択して実行します。
 
 
-��Windows��zip�Ł�
-inspause.exe���_�u���N���b�N���Ď��s���܂��B
+＜Windowsのzip版＞
+inspause.exeをダブルクリックして実行します。
 
-�N������Ƃ��ɁA�u���̃A�v���P�[�V�����̍\�����������Ȃ����߁A�A�v���P�[�V������
-�J�n�ł��܂���ł����v�Ƃ����G���[���b�Z�[�W���o���ꍇ�́A
-�uMicrosoft Visual C++ 2008 �ĔЕz�\�p�b�P�[�W (x86)�v��
-�C���X�g�[�����Ă��������B
+起動するときに、「このアプリケーションの構成が正しくないため、アプリケーションを
+開始できませんでした」というエラーメッセージが出た場合は、
+「Microsoft Visual C++ 2008 再頒布可能パッケージ (x86)」も
+インストールしてください。
 
 
-���\�[�X�t�@�C���Ł�
-�ȉ����C���X�g�[�����Ă����܂��B
-�EPython 2�n
-�EwxPython
-�Epyaudio
-�E�i�I�v�V�����jffmpeg
+＜ソースファイル版＞
+以下をインストールしておきます。
+・Python 2系
+・wxPython
+・pyaudio
+・（オプション）ffmpeg
 
-�R���\�[���ŁAinspause.py������f�B���N�g���ֈړ���A�ȉ������s���܂��B
+コンソールで、inspause.pyがあるディレクトリへ移動後、以下を実行します。
 $ python inspause.py
 
 
-wav�ȊO�imp3, aac, ogg�Ȃǁj�̌`�������������ꍇ
+wav以外（mp3, aac, oggなど）の形式も扱いたい場合
 -------------------------------------------------------------------------------
 
-inspause�͕W����wav�`�����������܂���B
-wav�ȊO�̌`�������������ꍇ�́A�ȉ��̎菇�ɏ]���Đݒ肵�Ă��������B
+inspauseは標準でwav形式しか扱えません。
+wav以外の形式も扱いたい場合は、以下の手順に従って設定してください。
 
 
-��Windows�̏ꍇ��
-�܂�ffmpeg.exe��p�ӂ��܂��B
-��̓I�ȕ��@�̓C���^�[�l�b�g�Ō������Ē��ׂĂ��������B
+＜Windowsの場合＞
+まずffmpeg.exeを用意します。
+具体的な方法はインターネットで検索して調べてください。
 
-ffmpeg.exe��inspause.exe�Ɠ����t�H���_�ɒu���܂��B
-�C���X�g�[������C���X�g�[�������ꍇ�Ainspause.exe�͈ȉ��̏ꏊ�ɂ���܂��B
+ffmpeg.exeをinspause.exeと同じフォルダに置きます。
+インストーラからインストールした場合、inspause.exeは以下の場所にあります。
 C:\Program Files (x86)\
 C:\Program Files\
 
 
-��Windows�ȊO��
-ffmpeg���C���X�g�[������Ύg�p�ł��܂��B
-�iPATH���ϐ����猟���ł���΂����ł��j
+＜Windows以外＞
+ffmpegをインストールすれば使用できます。
+（PATH環境変数から検索できればいいです）
 
 
-�V���[�g�J�b�g�L�[
+ショートカットキー
 -------------------------------------------------------------------------------
 
-* �Đ�
-�X�y�[�X         : �Đ��^�ꎞ��~
-Shift + �X�y�[�X : �|�[�Y�Đ�
-b                : �����J�b�g�Đ��i�����ł���ꏊ�ł̂݁j
-s                : �I�𖖔��Đ�
+* 再生
+スペース         : 再生／一時停止
+Shift + スペース : ポーズ再生
+b                : もしカット再生（分割できる場所でのみ）
+s                : 選択末尾再生
 
-* ���݈ʒu�̕ύX
-Home           : �擪�ֈړ�
-�E���         : 0.002�b�i�ށi��~���̂݁j
-Ctrl + �E���  : 0.02�b�i�ށi��~���̂݁j
-Shift + �E��� : 1�b�i�ށi��~���̂݁j
-�����         : 0.002�b�߂�i��~���̂݁j
-Ctrl + �����  : 0.02�b�߂�i��~���̂݁j
-Shift + ����� : 1�b�߂�i��~���̂݁j
+* 現在位置の変更
+Home           : 先頭へ移動
+右矢印         : 0.002秒進む（停止中のみ）
+Ctrl + 右矢印  : 0.02秒進む（停止中のみ）
+Shift + 右矢印 : 1秒進む（停止中のみ）
+左矢印         : 0.002秒戻る（停止中のみ）
+Ctrl + 左矢印  : 0.02秒戻る（停止中のみ）
+Shift + 左矢印 : 1秒戻る（停止中のみ）
 
-* �ҏW�i���ꂼ��̃R�}���h���g�p�ł���悤�Ȉʒu�ɂ���Ƃ��̂ݗL���j
-c        : ����
-i        : �|�[�Y��}��
-l        : ���ƌ���
-r        : �E�ƌ���
-Del      : �I���|�[�Y���폜
-Ctrl + s : �|�[�Y����ۑ�
-Ctrl + z : ���ɖ߂�
-Ctrl + y : ��蒼���i���ɖ߂��̂����ɖ߂��j
+* 編集（それぞれのコマンドが使用できるような位置にいるときのみ有効）
+c        : 分割
+i        : ポーズを挿入
+l        : 左と結合
+r        : 右と結合
+Del      : 選択ポーズを削除
+Ctrl + s : ポーズ情報を保存
+Ctrl + z : 元に戻す
+Ctrl + y : やり直し（元に戻すのを元に戻す）
 
-* �\��
-�{       : �\���g��
-�[       : �\���k��
-End      : ������\��
-PageUp   : ���ʍ���\��
-PageDown : ���ʉE��\��
-����   : �g�`�̉��̕����g��\��
-�����   : �S�̂�������悤�ɔg�`���k��
+* 表示
+＋       : 表示拡大
+ー       : 表示縮小
+End      : 末尾を表示
+PageUp   : 一画面左を表示
+PageDown : 一画面右を表示
+上矢印   : 波形の下の方を拡大表示
+下矢印   : 全体が見えるように波形を縮小
 
 
-���C�Z���X
+ライセンス
 -------------------------------------------------------------------------------
 
 Icon : Attribution-Share Alike license
-others : GPL2�i�ڂ�����LICENSE.txt���䗗���������j
+others : GPL2（詳しくはLICENSE.txtを御覧ください）
 
 
-���
+作者
 -------------------------------------------------------------------------------
 
 NAME : Ivan Ivanovich Ivanov (vanya)
@@ -186,17 +186,17 @@ by Momentum Design Lab
 http://momentumdesignlab.com/
 License : Attribution-Share Alike license
 
-�c�[���o�[�̃A�C�R���ƃv���O�����A�C�R���Ɏg�p���Ă��܂��B
-�ꕔ�C�����Ă��܂��B
+ツールバーのアイコンとプログラムアイコンに使用しています。
+一部修正しています。
 
 
-�ύX����
+変更履歴
 -------------------------------------------------------------------------------
 
-CHANGES.md���Q�Ƃ��Ă��������B
+CHANGES.mdを参照してください。
 
 
-�J���Ҍ������
+開発者向け情報
 -------------------------------------------------------------------------------
 
-DEV_NOTE.md���Q�Ƃ��Ă��������B
+DEV_NOTE.mdを参照してください。
