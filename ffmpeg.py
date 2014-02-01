@@ -18,6 +18,7 @@ import sys
 ffmpeg_bin = ''
 
 DURATION_RE = re.compile(r'Duration:\s*(\d{2}:\d{2}:\d{2}\.\d{2})')
+EXTENSIONS = ['mp3', 'aac', 'm4a', 'wma']
 
 # ffmpeg存在チェック
 has_ffmpeg = False

@@ -27,6 +27,7 @@ from autoshift import auto_shift, find_dist_s
 from backup import Backup
 from conf import *
 from convtable import Conv_table
+import ffmpeg
 from findsnd import find_sound, FIND_RATE, SIL_LV, SIL_DUR_S, BEFORE_DUR_S, AFTER_DUR_S
 import insp
 from label import Label, LBL_PAUSE
@@ -954,7 +955,21 @@ class InsPause(wx.App):
         dlg = wx.DirDialog(self.frame, msg, snd_dir, style)
         if dlg.ShowModal() == wx.ID_OK:
             self.snd_dir = dlg.GetPath()
+            self.CheckCanRead()
         dlg.Destroy()
+
+    def CheckCanRead(self):
+        '''
+        ffmpegがないのにwav以外を読み込もうとした場合に
+        メッセージを表示する
+        '''
+
+        snd_files = mf.get_snd_files(self.snd_dir)
+        if not snd_files and not ffmpeg.has_ffmpeg and \
+                mf.exists(self.snd_dir, ffmpeg.EXTENSIONS):
+            msg = u'wav形式以外に対応するにはffmpeg.exeを' \
+                  u'inspause.exeと同じフォルダに置く必要があります'
+            wx.MessageBox(msg, u'wav以外の読み書き')
 
     # ---- 設定項目
 
@@ -1364,6 +1379,7 @@ class DirDrop(wx.FileDropTarget):
                 snd_dir = os.path.dirname(names[0])
 
             self.app.snd_dir = snd_dir
+            self.app.CheckCanRead()
 
 
 # py2exeでは、この関数をmyfile.pyに置くと

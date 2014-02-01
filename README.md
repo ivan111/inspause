@@ -20,21 +20,21 @@ InsPause
 * [変更履歴](#changes)
 * [開発者向け情報](#fordev)
 
-<a name="desc"> 機能
+<a name="desc"></a> 機能
 -------------------------------------------------------------------------------
 
 InsPauseは、repeating用の音声を作成するためのsoftwareです。  
 CDからripしたsoundやDownloadしたsoundをloadし、節やsentenceの終了位置を自動的に見つけpause（無音）をinsertします。
 
 
-<a name="requirements">動作環境
+<a name="requirements"></a> 動作環境
 -------------------------------------------------------------------------------
 
 Windows, Mac, Linux  
 動作確認は、Windows7(64bit)とUbuntu13.10でしました。
 
 
-<a name="install"> インストール
+<a name="install"></a> インストール
 -------------------------------------------------------------------------------
 
 ### インストーラ版
@@ -47,7 +47,7 @@ Windows, Mac, Linux
 zip版と同じです。
 
 
-<a name="uninstall"> アンインストール
+<a name="uninstall"></a> アンインストール
 -------------------------------------------------------------------------------
 
 ### ソフト自体の削除
@@ -68,7 +68,7 @@ zip版と同じです。
 ffmpeg.exeをinspauseのアプリケーションフォルダに入れている場合はそれも手動で削除してください。
 
 
-<a name="run"> 実行方法
+<a name="run"></a> 実行方法
 -------------------------------------------------------------------------------
 
 ### インストーラ版
@@ -93,7 +93,7 @@ inspause.exeをダブルクリックして実行します。
     $ python inspause.py
 
 
-<a name="ffmpeg"> wav以外（mp3, aac, oggなど）の形式も扱いたい場合
+<a name="ffmpeg"></a> wav以外（mp3, aac, oggなど）の形式も扱いたい場合
 -------------------------------------------------------------------------------
 
 inspauseは標準でwav形式しか扱えません。  
@@ -114,13 +114,13 @@ ffmpeg.exeをinspause.exeと同じフォルダに置きます。
 ffmpegをインストールすれば使用できます（PATH環境変数から検索できればいいです）。
 
 
-<a name="how_to_use"> 使い方
+<a name="how_to_use"></a> 使い方
 -------------------------------------------------------------------------------
 
 [InsPause](http://vanya.jp.net/eng/inspause/)を参照してください。
 
 
-<a name="shortcuts"> ショートカットキー
+<a name="shortcuts"></a> ショートカットキー
 -------------------------------------------------------------------------------
 
 ### 再生
@@ -159,14 +159,14 @@ ffmpegをインストールすれば使用できます（PATH環境変数から�
 * 下矢印   : 全体が見えるように波形を縮小
 
 
-<a name="license"> ライセンス
+<a name="license"></a> ライセンス
 -------------------------------------------------------------------------------
 
 Icon : Attribution-Share Alike license  
 others : GPL2（詳しくはLICENSE.txtを御覧ください）
 
 
-<a name="author"> 作者
+<a name="author"></a> 作者
 -------------------------------------------------------------------------------
 
 NAME : Ivan Ivanovich Ivanov (vanya)  
@@ -174,7 +174,7 @@ WEB : http://vanya.jp.net/
 MAIL : i@vanya.jp.net  
 
 
-<a name="thanks"> THANKS
+<a name="thanks"></a> THANKS
 -------------------------------------------------------------------------------
 
 * Icon
@@ -185,13 +185,13 @@ License : Attribution-Share Alike license
 ツールバーのアイコンとプログラムアイコンに使用しています。一部修正しています。
 
 
-<a name="changes"> 変更履歴
+<a name="changes"></a> 変更履歴
 -------------------------------------------------------------------------------
 
 [CHANGES.md](https://github.com/ivan111/inspause/blob/master/CHANGES.md)を参照してください。
 
 
-<a name="fordev"> 開発者向け情報
+<a name="fordev"></a> 開発者向け情報
 -------------------------------------------------------------------------------
 
 [DEV_NOTE.md](https://github.com/ivan111/inspause/blob/master/DEV_NOTE.md)を参照してください。

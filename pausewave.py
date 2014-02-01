@@ -19,7 +19,7 @@ import ffmpeg
 extensions = ['wav']
 
 if ffmpeg.has_ffmpeg:
-    extensions = ['wav', 'mp3', 'aac', 'm4a', 'wma']
+    extensions += ffmpeg.EXTENSIONS
 
 
 def open(f, mode='rb', prg=None):

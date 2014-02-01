@@ -326,3 +326,24 @@ def get_music_dir():
             pass
 
     return music_dir
+
+def exists(snd_dir, extensions):
+    '''
+    snd_dirフォルダにextensionsに含まれる拡張子のファイルが存在するか？
+    '''
+
+    snd_files = []
+
+    if not snd_dir or not os.path.exists(snd_dir):
+        return False
+
+    for snd_file in os.listdir(snd_dir):
+        if not os.path.isfile(os.path.join(snd_dir, snd_file)):
+            continue
+
+        ext = get_ext(snd_file)
+
+        if ext in extensions:
+            return True
+
+    return False
