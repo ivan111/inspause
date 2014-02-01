@@ -6,8 +6,8 @@ InsPause メイン
 '''
 
 __author__  = 'vanya'
-__version__ = '2.10.0'
-__date__    = '2014-01-22'
+__version__ = '2.10.1'
+__date__    = '2014-02-01'
 
 APP_NAME = 'inspause'
 
