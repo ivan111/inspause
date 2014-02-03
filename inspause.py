@@ -6,8 +6,10 @@ InsPause メイン
 '''
 
 __author__  = 'vanya'
-__version__ = '2.10.1'
-__date__    = '2014-02-01'
+__version__ = '2.10.2'
+__date__    = '2014-02-03'
+
+web_site = 'http://vanya.jp.net/eng/inspause/'
 
 APP_NAME = 'inspause'
 
@@ -22,6 +24,7 @@ import sys
 import wx.lib.agw.persist as PM
 from wx.lib.masked.numctrl import NumCtrl
 from wx import xrc
+from wx import html
 
 from autoshift import auto_shift, find_dist_s
 from backup import Backup
@@ -421,6 +424,16 @@ class InsPause(wx.App):
             colour.SetFromName(name)
 
         return colour
+
+    def ShowAboutDlg(self):
+        msg = '''\
+%s version %s
+Author: %s
+Web Site: %s\
+''' % (APP_NAME, __version__, __author__, web_site)
+        dlg = wx.MessageDialog(self.frame, msg, 'About %s' % APP_NAME, wx.OK | wx.CENTRE)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     #--------------------------------------------------------------------------
 
@@ -920,6 +933,12 @@ class InsPause(wx.App):
             self.spl_log.SplitVertically(self.win1, self.win2, self.log_sash_pos)
             self.conf.show_log = True
             self.menu.Check(xrc.XRCID('MenuLog'), True)
+
+    # ---- About
+
+    @binder(wx.EVT_MENU, id='MenuAbout')
+    def OnAbout(self, evt):
+        self.ShowAboutDlg()
 
     # ----
 

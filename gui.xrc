@@ -605,6 +605,9 @@
         <checkable>1</checkable>
       </object>
       <label>ウィンドウ(&amp;W)</label>
+      <object class="wxMenuItem" name="MenuAbout">
+        <label>About...</label>
+      </object>
     </object>
   </object>
 </resource>
