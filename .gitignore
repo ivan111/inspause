@@ -1,1 +1,5 @@
 *.pyc
+ffmpeg.exe
+dist
+build
+MANIFEST

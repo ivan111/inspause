@@ -6,8 +6,8 @@ InsPause メイン
 '''
 
 __author__  = 'vanya'
-__version__ = '2.10.2'
-__date__    = '2014-02-03'
+__version__ = '2.10.3'
+__date__    = '2014-05-17'
 
 web_site = 'http://vanya.jp.net/eng/inspause/'
 

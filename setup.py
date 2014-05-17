@@ -55,7 +55,7 @@ def add_py2exe_options(options):
 
     manifest = get_manifest()
 
-    files = ['gui.xrc', 'icon.ico', 'README.md', 'CHANGES.md', 'LICENSE.txt']
+    files = ['gui.xrc', 'icon.ico', 'README.md', 'CHANGES.md', 'LICENSE.txt', 'ffmpeg.exe']
     options['data_files'] = [('backup', glob('backup\\*.zip')),
                              ('icon', glob('icon\\*.png')),
                              ('', files)]
