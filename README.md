@@ -3,6 +3,8 @@ InsPause
 
 > このソフトをテレンス・リーさんに捧げます。
 
+![Screenshot](https://github.com/ivan111/inspause/raw/master/inspause.png)
+
 目次
 -------------------------------------------------------------------------------
 * [機能](#desc)
