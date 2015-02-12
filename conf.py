@@ -57,6 +57,7 @@ conf_data = [
     ['add_s',  T_FLOAT, ADD_S,  (MIN_ADD_S, MAX_ADD_S)],
 ]],
 ['view', [
+    ['show_save2',    T_BOOL, True,  None],
     ['scale',         T_INT,  100,   (MIN_SCALE, 100)],
     ['view_factor',   T_INT,  2,     (1, MAX_VIEW_FACTOR)],
     ['show_log',      T_BOOL, False, None],

@@ -581,6 +581,11 @@
       <tooltip>ポーズ情報の保存(Ctrl+s)</tooltip>
       <longhelp>いままでの変更をファイルに保存</longhelp>
     </object>
+    <object class="tool" name="ToolSaveSound">
+      <bitmap>icon\save2.png</bitmap>
+      <tooltip>ポーズ音声作成</tooltip>
+      <longhelp>ポーズ入り音声を作成</longhelp>
+    </object>
   </object>
   <object class="wxMenuBar" name="MenuBar">
     <object class="wxMenu">
@@ -605,6 +610,12 @@
         <checkable>1</checkable>
       </object>
       <label>ウィンドウ(&amp;W)</label>
+    </object>
+    <object class="wxMenu">
+      <label>ヘルプ(&amp;H)</label>
+      <object class="wxMenuItem" name="MenuManual">
+        <label>マニュアル...</label>
+      </object>
       <object class="wxMenuItem" name="MenuAbout">
         <label>About...</label>
       </object>

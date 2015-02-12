@@ -6,8 +6,8 @@ InsPause メイン
 '''
 
 __author__  = 'vanya'
-__version__ = '2.10.3'
-__date__    = '2014-05-17'
+__version__ = '2.10.5'
+__date__    = '2015-02-09'
 
 web_site = 'http://vanya.jp.net/eng/inspause/'
 
@@ -20,6 +20,7 @@ mf.init_dir(APP_NAME)
 
 import os
 import sys
+import webbrowser
 
 import wx.lib.agw.persist as PM
 from wx.lib.masked.numctrl import NumCtrl
@@ -261,8 +262,13 @@ class InsPause(wx.App):
         tools += [{'name': 'ToolUndo',       'check': self.view.can_undo}]
         tools += [{'name': 'ToolRedo',       'check': self.view.can_redo}]
         tools += [{'name': 'ToolSaveLabels', 'check': self.view.can_save}]
+        tools += [{'name': 'ToolSaveSound',  'check': lambda: True }]
 
         self.tool_bar = self.res.LoadToolBar(self.frame, 'ToolBar')
+
+        if not self.conf.show_save2:
+            self.tool_bar.RemoveTool(xrc.XRCID('ToolSaveSound'))
+
         self.tool_bar.Realize()
 
     def CanPlay(self):
@@ -934,6 +940,12 @@ Web Site: %s\
             self.conf.show_log = True
             self.menu.Check(xrc.XRCID('MenuLog'), True)
 
+    # ---- マニュアル
+
+    @binder(wx.EVT_MENU, id='MenuManual')
+    def OnManual(self, evt):
+        webbrowser.open('http://vanya.jp.net/eng/inspause/manual.html')
+
     # ---- About
 
     @binder(wx.EVT_MENU, id='MenuAbout')
@@ -1025,6 +1037,7 @@ Web Site: %s\
 
     @binder(wx.EVT_BUTTON, control='BtnInsertPause')
     def OnInsertPauseAll(self, evt):
+        self.conf.show_save2 = False
         self.InsertPause()
 
     # -------- ずれ調整
@@ -1210,12 +1223,18 @@ Web Site: %s\
         self.view.redo()
         self.EnableUI()
 
-    # 保存
+    # ポーズ情報保存
     @binder(wx.EVT_MENU, id='MenuSave')
     @binder(wx.EVT_TOOL, id='ToolSaveLabels')
     def OnSaveLabels(self, evt):
         self.view.save()
         self.EnableUI()
+
+    # ポーズ音声出力
+    @binder(wx.EVT_TOOL, id='ToolSaveSound')
+    def OnSaveSound(self, evt):
+        res = wx.MessageBox(u'画面左下「メイン」タブの中の「ポーズ音声作成」ボタンを押してください。', u'メッセージ')
+
 
     # ---- メニュー
 
