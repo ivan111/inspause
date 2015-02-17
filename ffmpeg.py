@@ -261,12 +261,12 @@ class Ffmpeg_write(object):
 
         args = [ffmpeg_bin, '-y', '-f', 's16le', '-acodec', 'pcm_s16le',
             '-ar', '44100', '-ac','2', '-i', '-',
-            '-vn', '-acodec', acodec, '-b', '128k', f]
+            '-vn', '-acodec', acodec, '-ab', '128k', f]
         '''
 
         args = [ffmpeg_bin, '-y', '-f', 's16le', '-acodec', 'pcm_s16le',
             '-ar', '44100', '-ac','2', '-i', '-',
-            '-vn', '-b', '128k', f]
+            '-vn', '-ab', '128k', f]
 
         self.pipe = sp.Popen(args,
             stdin=sp.PIPE, stdout=sp.PIPE, stderr=self.nul_file,
