@@ -6,8 +6,8 @@ InsPause メイン
 '''
 
 __author__  = 'vanya'
-__version__ = '2.10.6'
-__date__    = '2015-02-17'
+__version__ = '2.10.7'
+__date__    = '2017-01-01'
 
 web_site = 'http://vanya.jp.net/eng/inspause/'
 
@@ -77,6 +77,12 @@ class InsPause(wx.App):
     binder = wx_utils.bind_manager()
 
     def OnInit(self):
+
+        if mf.err_msg:
+            msg = mf.err_msg + u'\n\nもしエラーを自己解決できない場合は、お手数ですがこのエラーメッセージの内容を作者へお知らせください。\nCtrl + C キーを押すとテキストがコピーされます。\n個人情報の部分は、適当な文字に書き換えといてください。'
+            wx.MessageBox(msg)
+            sys.exit(1)
+
         self.conf = Config(mf.app_data_dir)
 
         if os.path.exists(mf.persist_path):

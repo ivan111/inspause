@@ -8,6 +8,7 @@ import os
 import re
 import shutil
 import sys
+import traceback
 
 import wx
 
@@ -36,6 +37,8 @@ map_path = None
 sys_backup_dir = None
 user_backup_dir = None
 
+err_msg = None
+
 map_labels = None
 
 
@@ -43,18 +46,41 @@ map_labels = None
 # 初期化
 
 def init_dir(app_name):
-    global xrc_path, log_path, persist_path, map_path, map_labels, sys_backup_dir
+    global xrc_path, log_path, persist_path, map_path, map_labels, sys_backup_dir, err_msg
 
-    init_app_data_dir(app_name)
-    init_p_labels_dir()
+    try:
+        init_app_data_dir(app_name)
+    except:
+        err = sys.exc_info()
+        err_msg = u'設定フォルダの読込または作成に失敗しました。\n\n%s\n%s\n\n%s' % (err[0], err[1], traceback.format_exc())
+        return
+
+    try:
+        init_p_labels_dir()
+    except:
+        err = sys.exc_info()
+        err_msg = u'ラベルフォルダの読込または作成に失敗しました。\n\n%s\n%s\n\n%s' % (err[0], err[1], traceback.format_exc())
+        return
+
     xrc_path = os.path.join('.', XRC_FILE)
     log_path = os.path.join(app_data_dir, LOG_FILE)
     persist_path = os.path.join(app_data_dir, PERSIST_FILE)
     map_path = os.path.join(p_labels_dir, MAP_FILE)
     sys_backup_dir = os.path.join('.', BACKUP_DIR)
-    init_user_backup_dir()
 
-    map_labels = Map_labels(map_path)
+    try:
+        init_user_backup_dir()
+    except:
+        err = sys.exc_info()
+        err_msg = u'ポーズ情報フォルダの読込または作成に失敗しました。\n\n%s\n%s\n\n%s' % (err[0], err[1], traceback.format_exc())
+        return
+
+    try:
+        map_labels = Map_labels(map_path)
+    except:
+        err = sys.exc_info()
+        err_msg = u'%s の読込に失敗しました。\n\n%s\n%s\n\n%s' % (map_path, err[0], err[1], traceback.format_exc())
+        return
 
 
 def init_app_data_dir(app_name):
