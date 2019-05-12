@@ -239,14 +239,14 @@ class InsPause(wx.App):
 
         icon = wx.ArtProvider.GetIcon(wx.ART_LIST_VIEW, size=(16, 16))
 
-        bmp = wx.EmptyBitmap(16, 16)
+        bmp = wx.Bitmap(16, 16)
         dc = wx.BufferedDC(None, bmp)
         dc.SetBackground(wx.WHITE_BRUSH)
         dc.Clear()
         del dc
 
         il = wx.ImageList(16, 16, False, 2)
-        il.AddIcon(icon)
+        il.Add(icon)
         il.Add(bmp)
         self.flist.AssignImageList(il, wx.IMAGE_LIST_SMALL)
 
@@ -433,7 +433,7 @@ class InsPause(wx.App):
         if isinstance(colour, basestring):
             name = colour
             colour = wx.Colour()
-            colour.SetFromName(name)
+            colour.Set(name)
 
         return colour
 
@@ -503,7 +503,7 @@ Web Site: %s\
             else:
                 image_no = IMG_NO_LABELS
 
-            self.flist.InsertImageStringItem(i, name, image_no)
+            self.flist.InsertItem(i, name, image_no)
 
         list_index = self.conf.list_index
         list_index = max(0, min(list_index, self.flist.ItemCount - 1))
@@ -964,14 +964,14 @@ Web Site: %s\
     @binder(wx.EVT_LIST_ITEM_SELECTED, control='FileList')
     def OnSelectSnd(self, evt):
         # 同じファイルは読み直さない
-        if self.conf.list_index == evt.m_itemIndex:
+        if self.conf.list_index == evt.Index:
             return
 
         self.ConfirmSave()
 
         snd_path = os.path.join(self.snd_dir, evt.GetText())
-        labels_path = mf.get_labels_path(self.snd_dir, evt.m_itemIndex + 1)
-        self.conf.list_index = evt.m_itemIndex
+        labels_path = mf.get_labels_path(self.snd_dir, evt.Index + 1)
+        self.conf.list_index = evt.Index
 
         self.SetSound(snd_path, labels_path)
 
@@ -1424,6 +1424,10 @@ class DirDrop(wx.FileDropTarget):
 
             self.app.snd_dir = snd_dir
             self.app.CheckCanRead()
+
+            return True
+
+        return False
 
 
 # py2exeでは、この関数をmyfile.pyに置くと

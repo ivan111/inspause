@@ -81,7 +81,7 @@ class BufferedWindow(wx.ScrolledWindow):
 
     def AddLayer(self):
         self._nlayers += 1
-        self.buffers.append(wx.EmptyBitmap(self.w, self.h))
+        self.buffers.append(wx.Bitmap(self.w, self.h))
 
     def SetCallAfter(self, func):
         self._call_after = func
@@ -98,7 +98,7 @@ class BufferedWindow(wx.ScrolledWindow):
 
         self.buffers = []
         for i in range(self._nlayers):
-            self.buffers.append(wx.EmptyBitmap(*size))
+            self.buffers.append(wx.Bitmap(*size))
 
             dc = wx.BufferedDC(None, self.buffers[i])
 

@@ -258,11 +258,11 @@ class Config(dict):
 
     def _load_colour(self, conf, section, name, default):
         colour = wx.Colour()
-        colour.SetFromName(default)
+        colour.Set(default)
 
         try:
             val = conf.get(section, name)
-            colour.SetFromName(val)
+            colour.Set(val)
         except (NoSectionError, NoOptionError):
             pass
         except Exception as e:

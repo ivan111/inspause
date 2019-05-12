@@ -726,7 +726,7 @@ class LabelsWindow(VolumeWindow):
     def _load_img(self, fname):
         img = wx.Image('icon/%s' % fname, wx.BITMAP_TYPE_PNG)
         img = img.Scale(16, 16, wx.IMAGE_QUALITY_HIGH)
-        return wx.BitmapFromImage(img)
+        return wx.Bitmap(img)
 
     def _get_labels_in_view(self):
         '''
