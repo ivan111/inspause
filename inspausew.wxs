@@ -1,0 +1,397 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <Product Id="68218689-8B3F-49E4-9A0F-D4490292E0B3" Name="inspause" Language="1041" Version="$(var.version)" Manufacturer="vanya" UpgradeCode="3C664B7F-23B9-4969-9EFB-3582D7E6BCCC" Codepage="932">
+        <Package Id="*" Description="Inspause" Comments="no comment" InstallerVersion="200" Compressed="yes" Languages="1041" SummaryCodepage="932" />
+        <Media Id="1" Cabinet="simple.cab" EmbedCab="yes" />
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder" Name="PFiles">
+                <Directory Id="INSPAUSE" Name="inspause">
+                    <Component Id="CHANGES.MD" DiskId="1" Guid="1EE71CC1-5B66-4A21-B91B-C7D5983AC3FE">
+                        <File Id="CHANGES.MD" Name="CHANGES.md" Source="$(var.inspauseDir)\CHANGES.md" />
+                    </Component>
+                    <Component Id="FFMPEG.EXE" DiskId="1" Guid="DF379392-7D90-4EA3-995A-8ECD2CDBAC9C">
+                        <File Id="FFMPEG.EXE" Name="ffmpeg.exe" Source="$(var.inspauseDir)\ffmpeg.exe" />
+                    </Component>
+                    <Component Id="GUI.XRC" DiskId="1" Guid="BE6A1554-9829-48D4-83A4-2FD9AFD607A1">
+                        <File Id="GUI.XRC" Name="gui.xrc" Source="$(var.inspauseDir)\gui.xrc" />
+                    </Component>
+                    <Component Id="ICON.ICO" DiskId="1" Guid="16A3CC0A-E705-4364-BF37-520A58D7E8BF">
+                        <File Id="ICON.ICO" Name="icon.ico" Source="$(var.inspauseDir)\icon.ico" />
+                    </Component>
+                    <Component Id="INSPAUSE.EXE" DiskId="1" Guid="29396FBD-C0E9-4493-A499-3E4F32DAE632">
+                        <File Id="INSPAUSE.EXE" Name="inspause.exe" Source="$(var.inspauseDir)\inspause.exe" />
+                        <Shortcut Id="desktopShortcut" Directory="DesktopFolder" Name="inspause" WorkingDirectory="INSPAUSE" Advertise="yes" Icon="DesktopIcon.exe" IconIndex="0" />
+                        <Shortcut Id="ExeShortcut" Directory="ProgramMenuDir" Name="inspause" WorkingDirectory="INSPAUSE" Advertise="yes" Icon="StartMenuIcon.exe" IconIndex="0" />
+                    </Component>
+                    <Component Id="LICENSE.TXT" DiskId="1" Guid="C9B27170-1497-4526-97E7-0A3394139436">
+                        <File Id="LICENSE.TXT" Name="LICENSE.txt" Source="$(var.inspauseDir)\LICENSE.txt" />
+                    </Component>
+                    <Component Id="PYTHON27.DLL" DiskId="1" Guid="5412F886-E5A7-455F-80E4-5986380C0BE5">
+                        <File Id="PYTHON27.DLL" Name="python27.dll" Source="$(var.inspauseDir)\python27.dll" />
+                    </Component>
+                    <Component Id="README.MD" DiskId="1" Guid="435A456F-4F28-40EB-99C5-5FA0749CF4F0">
+                        <File Id="README.MD" Name="README.md" Source="$(var.inspauseDir)\README.md" />
+                    </Component>
+                    <Directory Id="BACKUP" Name="backup">
+                        <Component Id="ZETTAI_HYOJUN43.ZIP" DiskId="1" Guid="DCF290F6-58A7-46D8-910F-5FFC1E00D1F4">
+                            <File Id="ZETTAI_HYOJUN43.ZIP" Name="zettai_hyojun43.zip" Source="$(var.inspauseDir)\backup\zettai_hyojun43.zip" />
+                        </Component>
+                        <Component Id="ZETTAI_HYOJUN45.ZIP" DiskId="1" Guid="EF1D63DC-0BCF-4B02-9FEF-28FA70D83781">
+                            <File Id="ZETTAI_HYOJUN45.ZIP" Name="zettai_hyojun45.zip" Source="$(var.inspauseDir)\backup\zettai_hyojun45.zip" />
+                        </Component>
+                        <Component Id="ZETTAI_NYUMON47.ZIP" DiskId="1" Guid="CBDB1073-0CD6-4766-9D6D-024E49EF097C">
+                            <File Id="ZETTAI_NYUMON47.ZIP" Name="zettai_nyumon47.zip" Source="$(var.inspauseDir)\backup\zettai_nyumon47.zip" />
+                        </Component>
+                        <Component Id="ZETTAI_NYUMON49.ZIP" DiskId="1" Guid="D81E478D-D4A3-4748-89FC-EC324CAADFA0">
+                            <File Id="ZETTAI_NYUMON49.ZIP" Name="zettai_nyumon49.zip" Source="$(var.inspauseDir)\backup\zettai_nyumon49.zip" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="ICON" Name="icon">
+                        <Component Id="CUT.PNG" DiskId="1" Guid="A4178122-892A-434C-AAF5-480870969825">
+                            <File Id="CUT.PNG" Name="cut.png" Source="$(var.inspauseDir)\icon\cut.png" />
+                        </Component>
+                        <Component Id="DELLBL.PNG" DiskId="1" Guid="8E83A559-E0F3-460F-8870-57A542F19390">
+                            <File Id="DELLBL.PNG" Name="dellbl.png" Source="$(var.inspauseDir)\icon\dellbl.png" />
+                        </Component>
+                        <Component Id="HEAD.PNG" DiskId="1" Guid="62581194-3009-4523-A749-BDCE6AF1D213">
+                            <File Id="HEAD.PNG" Name="head.png" Source="$(var.inspauseDir)\icon\head.png" />
+                        </Component>
+                        <Component Id="INSERT.PNG" DiskId="1" Guid="F56134C7-2715-4438-A74B-4E6CC4E3D2CC">
+                            <File Id="INSERT.PNG" Name="insert.png" Source="$(var.inspauseDir)\icon\insert.png" />
+                        </Component>
+                        <Component Id="MERGELEFT.PNG" DiskId="1" Guid="8738EC79-1281-41BB-AEBD-4185A17C50BE">
+                            <File Id="MERGELEFT.PNG" Name="mergeleft.png" Source="$(var.inspauseDir)\icon\mergeleft.png" />
+                        </Component>
+                        <Component Id="MERGERIGHT.PNG" DiskId="1" Guid="F60AD9EE-569C-4329-9854-BC03F33C5FE6">
+                            <File Id="MERGERIGHT.PNG" Name="mergeright.png" Source="$(var.inspauseDir)\icon\mergeright.png" />
+                        </Component>
+                        <Component Id="PAUSE.PNG" DiskId="1" Guid="991CECD4-2AEF-4B5B-97A2-64D711689201">
+                            <File Id="PAUSE.PNG" Name="pause.png" Source="$(var.inspauseDir)\icon\pause.png" />
+                        </Component>
+                        <Component Id="PLAY.PNG" DiskId="1" Guid="834E4557-6331-4851-AE89-95266B1202D0">
+                            <File Id="PLAY.PNG" Name="play.png" Source="$(var.inspauseDir)\icon\play.png" />
+                        </Component>
+                        <Component Id="PLAYIFCUT.PNG" DiskId="1" Guid="A84AD4FB-FD3A-4253-AF48-BF454F65F3D5">
+                            <File Id="PLAYIFCUT.PNG" Name="playifcut.png" Source="$(var.inspauseDir)\icon\playifcut.png" />
+                        </Component>
+                        <Component Id="PLAYPAUSE.PNG" DiskId="1" Guid="911C23E2-01DC-40D4-8200-E60F1B2A3E06">
+                            <File Id="PLAYPAUSE.PNG" Name="playpause.png" Source="$(var.inspauseDir)\icon\playpause.png" />
+                        </Component>
+                        <Component Id="REDO.PNG" DiskId="1" Guid="522A05BC-ED72-48A4-AD8C-59C7BF2DD4E3">
+                            <File Id="REDO.PNG" Name="redo.png" Source="$(var.inspauseDir)\icon\redo.png" />
+                        </Component>
+                        <Component Id="REMOVE.PNG" DiskId="1" Guid="A0223612-A183-4461-8E47-E6DE5F6C2ED2">
+                            <File Id="REMOVE.PNG" Name="remove.png" Source="$(var.inspauseDir)\icon\remove.png" />
+                        </Component>
+                        <Component Id="SAVE.PNG" DiskId="1" Guid="396A5A54-4098-4058-9FC3-0124A408A2C2">
+                            <File Id="SAVE.PNG" Name="save.png" Source="$(var.inspauseDir)\icon\save.png" />
+                        </Component>
+                        <Component Id="SAVE2.PNG" DiskId="1" Guid="F3456391-4DCD-44ED-A56C-CF1229348835">
+                            <File Id="SAVE2.PNG" Name="save2.png" Source="$(var.inspauseDir)\icon\save2.png" />
+                        </Component>
+                        <Component Id="SNDLBL.PNG" DiskId="1" Guid="84A0E9E4-2073-44A2-9334-50DDA5EB6C8B">
+                            <File Id="SNDLBL.PNG" Name="sndlbl.png" Source="$(var.inspauseDir)\icon\sndlbl.png" />
+                        </Component>
+                        <Component Id="TAIL.PNG" DiskId="1" Guid="5AA02795-9E82-448C-BF19-66FCB6F6456F">
+                            <File Id="TAIL.PNG" Name="tail.png" Source="$(var.inspauseDir)\icon\tail.png" />
+                        </Component>
+                        <Component Id="UNDO.PNG" DiskId="1" Guid="E14E170B-4373-40C3-B6A4-C013EBFD9119">
+                            <File Id="UNDO.PNG" Name="undo.png" Source="$(var.inspauseDir)\icon\undo.png" />
+                        </Component>
+                        <Component Id="ZOOMIN.PNG" DiskId="1" Guid="CFA2A07A-1C94-4609-B28C-A1292E25EE8F">
+                            <File Id="ZOOMIN.PNG" Name="zoomin.png" Source="$(var.inspauseDir)\icon\zoomin.png" />
+                        </Component>
+                        <Component Id="ZOOMOUT.PNG" DiskId="1" Guid="C0163191-D6B9-4C1F-8AD5-2B23B313F2C9">
+                            <File Id="ZOOMOUT.PNG" Name="zoomout.png" Source="$(var.inspauseDir)\icon\zoomout.png" />
+                        </Component>
+                    </Directory>
+                    <Directory Id="LIB" Name="lib">
+                        <Component Id="BZ2.PYD" DiskId="1" Guid="B70F80B6-3B62-4749-87B6-F6E9C6193B48">
+                            <File Id="BZ2.PYD" Name="bz2.pyd" Source="$(var.inspauseDir)\lib\bz2.pyd" />
+                        </Component>
+                        <Component Id="CRYPT32.DLL" DiskId="1" Guid="9D6D0A95-1E62-498F-A206-430D1C112B7E">
+                            <File Id="CRYPT32.DLL" Name="CRYPT32.dll" Source="$(var.inspauseDir)\lib\CRYPT32.dll" />
+                        </Component>
+                        <Component Id="LIBRARY.ZIP" DiskId="1" Guid="9DC0E3F1-4027-49D8-9D78-C3C43239CB50">
+                            <File Id="LIBRARY.ZIP" Name="library.zip" Source="$(var.inspauseDir)\lib\library.zip" />
+                        </Component>
+                        <Component Id="OLEACC.DLL" DiskId="1" Guid="9F7638EF-C8C2-407D-B9E2-710D65A50584">
+                            <File Id="OLEACC.DLL" Name="OLEACC.dll" Source="$(var.inspauseDir)\lib\OLEACC.dll" />
+                        </Component>
+                        <Component Id="PIL._IMAGING.PYD" DiskId="1" Guid="BE570B86-D760-431B-9D0D-B30F983911A6">
+                            <File Id="PIL._IMAGING.PYD" Name="PIL._imaging.pyd" Source="$(var.inspauseDir)\lib\PIL._imaging.pyd" />
+                        </Component>
+                        <Component Id="PYEXPAT.PYD" DiskId="1" Guid="CD664540-1990-4251-A25B-1FAE4AF1B96B">
+                            <File Id="PYEXPAT.PYD" Name="pyexpat.pyd" Source="$(var.inspauseDir)\lib\pyexpat.pyd" />
+                        </Component>
+                        <Component Id="PYTHONCOM27.DLL" DiskId="1" Guid="B3FBF1C8-DBEB-46DB-89D0-CC6809D26A22">
+                            <File Id="PYTHONCOM27.DLL" Name="pythoncom27.dll" Source="$(var.inspauseDir)\lib\pythoncom27.dll" />
+                        </Component>
+                        <Component Id="PYWINTYPES27.DLL" DiskId="1" Guid="0390B4CB-E775-4F1F-B627-E942827160D9">
+                            <File Id="PYWINTYPES27.DLL" Name="pywintypes27.dll" Source="$(var.inspauseDir)\lib\pywintypes27.dll" />
+                        </Component>
+                        <Component Id="SELECT.PYD" DiskId="1" Guid="5DA888F2-D1CF-43F9-A694-809560E026C2">
+                            <File Id="SELECT.PYD" Name="select.pyd" Source="$(var.inspauseDir)\lib\select.pyd" />
+                        </Component>
+                        <Component Id="UNICODEDATA.PYD" DiskId="1" Guid="A25A14B2-76DE-4024-B3BF-7E407A3D772C">
+                            <File Id="UNICODEDATA.PYD" Name="unicodedata.pyd" Source="$(var.inspauseDir)\lib\unicodedata.pyd" />
+                        </Component>
+                        <Component Id="WIN32API.PYD" DiskId="1" Guid="D014CC03-1AFD-40D6-A4BD-94943725CB5D">
+                            <File Id="WIN32API.PYD" Name="win32api.pyd" Source="$(var.inspauseDir)\lib\win32api.pyd" />
+                        </Component>
+                        <Component Id="WIN32CLIPBOARD.PYD" DiskId="1" Guid="679004FF-E725-4B74-96CA-9EE992D06C87">
+                            <File Id="WIN32CLIPBOARD.PYD" Name="win32clipboard.pyd" Source="$(var.inspauseDir)\lib\win32clipboard.pyd" />
+                        </Component>
+                        <Component Id="WIN32EVENT.PYD" DiskId="1" Guid="203A2CB3-6379-4113-97D8-0F5DC81D01D5">
+                            <File Id="WIN32EVENT.PYD" Name="win32event.pyd" Source="$(var.inspauseDir)\lib\win32event.pyd" />
+                        </Component>
+                        <Component Id="WIN32GUI.PYD" DiskId="1" Guid="597E2AEF-DCE2-481D-8A9C-F68F5784C3DC">
+                            <File Id="WIN32GUI.PYD" Name="win32gui.pyd" Source="$(var.inspauseDir)\lib\win32gui.pyd" />
+                        </Component>
+                        <Component Id="WIN32PDH.PYD" DiskId="1" Guid="17A1FCE0-5D56-4C23-BA1E-F8AD9193739B">
+                            <File Id="WIN32PDH.PYD" Name="win32pdh.pyd" Source="$(var.inspauseDir)\lib\win32pdh.pyd" />
+                        </Component>
+                        <Component Id="WIN32PROCESS.PYD" DiskId="1" Guid="422F7A5A-2D4A-4D6F-9A72-93B8BDB87E55">
+                            <File Id="WIN32PROCESS.PYD" Name="win32process.pyd" Source="$(var.inspauseDir)\lib\win32process.pyd" />
+                        </Component>
+                        <Component Id="WIN32TRACE.PYD" DiskId="1" Guid="CF8A7897-F662-4243-8C38-10DEF10F3F2D">
+                            <File Id="WIN32TRACE.PYD" Name="win32trace.pyd" Source="$(var.inspauseDir)\lib\win32trace.pyd" />
+                        </Component>
+                        <Component Id="WIN32UI.PYD" DiskId="1" Guid="C8B22F1E-47E7-471E-B4E7-8394C02C44AB">
+                            <File Id="WIN32UI.PYD" Name="win32ui.pyd" Source="$(var.inspauseDir)\lib\win32ui.pyd" />
+                        </Component>
+                        <Component Id="WIN32UIOLE.PYD" DiskId="1" Guid="96E96E50-23C4-41A5-9F2E-C8AFDD1C0C77">
+                            <File Id="WIN32UIOLE.PYD" Name="win32uiole.pyd" Source="$(var.inspauseDir)\lib\win32uiole.pyd" />
+                        </Component>
+                        <Component Id="WINXPGUI.PYD" DiskId="1" Guid="B7C25211-92B1-4C5F-A08C-857E928EC881">
+                            <File Id="WINXPGUI.PYD" Name="winxpgui.pyd" Source="$(var.inspauseDir)\lib\winxpgui.pyd" />
+                        </Component>
+                        <Component Id="WX.SIPLIB.PYD" DiskId="1" Guid="8853D8E6-B4C6-4812-8DBD-4C5041BB1CDB">
+                            <File Id="WX.SIPLIB.PYD" Name="wx.siplib.pyd" Source="$(var.inspauseDir)\lib\wx.siplib.pyd" />
+                        </Component>
+                        <Component Id="WX._ADV.PYD" DiskId="1" Guid="4488A7E5-1CE1-4531-8A10-960AFFEA1436">
+                            <File Id="WX._ADV.PYD" Name="wx._adv.pyd" Source="$(var.inspauseDir)\lib\wx._adv.pyd" />
+                        </Component>
+                        <Component Id="WX._AUI.PYD" DiskId="1" Guid="9BE6CB1C-958A-432F-A6BC-58C4BB98B54D">
+                            <File Id="WX._AUI.PYD" Name="wx._aui.pyd" Source="$(var.inspauseDir)\lib\wx._aui.pyd" />
+                        </Component>
+                        <Component Id="WX._CORE.PYD" DiskId="1" Guid="51C56DD5-7284-4F71-BB27-D0FAB037000C">
+                            <File Id="WX._CORE.PYD" Name="wx._core.pyd" Source="$(var.inspauseDir)\lib\wx._core.pyd" />
+                        </Component>
+                        <Component Id="WX._DATAVIEW.PYD" DiskId="1" Guid="92BFBFF0-1498-4DB5-AFC4-666331EE9A74">
+                            <File Id="WX._DATAVIEW.PYD" Name="wx._dataview.pyd" Source="$(var.inspauseDir)\lib\wx._dataview.pyd" />
+                        </Component>
+                        <Component Id="WX._GLCANVAS.PYD" DiskId="1" Guid="D9E044C6-F73E-472F-B028-C7809CEAA960">
+                            <File Id="WX._GLCANVAS.PYD" Name="wx._glcanvas.pyd" Source="$(var.inspauseDir)\lib\wx._glcanvas.pyd" />
+                        </Component>
+                        <Component Id="WX._GRID.PYD" DiskId="1" Guid="EDE38A45-85BA-4277-BB94-4477F2960713">
+                            <File Id="WX._GRID.PYD" Name="wx._grid.pyd" Source="$(var.inspauseDir)\lib\wx._grid.pyd" />
+                        </Component>
+                        <Component Id="WX._HTML.PYD" DiskId="1" Guid="85E93B22-FA56-4789-A856-44AF76171D70">
+                            <File Id="WX._HTML.PYD" Name="wx._html.pyd" Source="$(var.inspauseDir)\lib\wx._html.pyd" />
+                        </Component>
+                        <Component Id="WX._HTML2.PYD" DiskId="1" Guid="1FA3E675-6766-425B-8E2E-81EA0BEB341C">
+                            <File Id="WX._HTML2.PYD" Name="wx._html2.pyd" Source="$(var.inspauseDir)\lib\wx._html2.pyd" />
+                        </Component>
+                        <Component Id="WX._MEDIA.PYD" DiskId="1" Guid="8735DE5F-5D4B-4EDC-AC7B-8B2DA47F1F6A">
+                            <File Id="WX._MEDIA.PYD" Name="wx._media.pyd" Source="$(var.inspauseDir)\lib\wx._media.pyd" />
+                        </Component>
+                        <Component Id="WX._MSW.PYD" DiskId="1" Guid="17A90EAE-EED2-475A-B3A4-4CA73FA355D2">
+                            <File Id="WX._MSW.PYD" Name="wx._msw.pyd" Source="$(var.inspauseDir)\lib\wx._msw.pyd" />
+                        </Component>
+                        <Component Id="WX._PROPGRID.PYD" DiskId="1" Guid="9E460001-0846-4824-A6DD-76C47FD452A8">
+                            <File Id="WX._PROPGRID.PYD" Name="wx._propgrid.pyd" Source="$(var.inspauseDir)\lib\wx._propgrid.pyd" />
+                        </Component>
+                        <Component Id="WX._RIBBON.PYD" DiskId="1" Guid="8FB337DA-2DAE-4C8D-B047-4B1ADA6D1879">
+                            <File Id="WX._RIBBON.PYD" Name="wx._ribbon.pyd" Source="$(var.inspauseDir)\lib\wx._ribbon.pyd" />
+                        </Component>
+                        <Component Id="WX._RICHTEXT.PYD" DiskId="1" Guid="93FF15F7-F7C6-4B13-87F6-C949787C7429">
+                            <File Id="WX._RICHTEXT.PYD" Name="wx._richtext.pyd" Source="$(var.inspauseDir)\lib\wx._richtext.pyd" />
+                        </Component>
+                        <Component Id="WX._STC.PYD" DiskId="1" Guid="C01D349F-AF62-48B2-B879-F22724283063">
+                            <File Id="WX._STC.PYD" Name="wx._stc.pyd" Source="$(var.inspauseDir)\lib\wx._stc.pyd" />
+                        </Component>
+                        <Component Id="WX._XML.PYD" DiskId="1" Guid="88A346D3-1296-43EF-B357-B9DAEF9750AE">
+                            <File Id="WX._XML.PYD" Name="wx._xml.pyd" Source="$(var.inspauseDir)\lib\wx._xml.pyd" />
+                        </Component>
+                        <Component Id="WX._XRC.PYD" DiskId="1" Guid="6857639E-9E6F-4A98-9081-3144ACDE8526">
+                            <File Id="WX._XRC.PYD" Name="wx._xrc.pyd" Source="$(var.inspauseDir)\lib\wx._xrc.pyd" />
+                        </Component>
+                        <Component Id="WXBASE30U_NET_VC90.DLL" DiskId="1" Guid="B157B11A-5E3B-463F-A31D-4F14B7C4EC73">
+                            <File Id="WXBASE30U_NET_VC90.DLL" Name="wxbase30u_net_vc90.dll" Source="$(var.inspauseDir)\lib\wxbase30u_net_vc90.dll" />
+                        </Component>
+                        <Component Id="WXBASE30U_VC90.DLL" DiskId="1" Guid="61FC7927-E5BF-4532-BE1E-611D5D4862BC">
+                            <File Id="WXBASE30U_VC90.DLL" Name="wxbase30u_vc90.dll" Source="$(var.inspauseDir)\lib\wxbase30u_vc90.dll" />
+                        </Component>
+                        <Component Id="WXBASE30U_XML_VC90.DLL" DiskId="1" Guid="4935D282-141C-4F42-BA2A-A6C39F3B0A30">
+                            <File Id="WXBASE30U_XML_VC90.DLL" Name="wxbase30u_xml_vc90.dll" Source="$(var.inspauseDir)\lib\wxbase30u_xml_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_ADV_VC90.DLL" DiskId="1" Guid="65AC1C85-98A8-4926-8B5D-86AE91A5FEA5">
+                            <File Id="WXMSW30U_ADV_VC90.DLL" Name="wxmsw30u_adv_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_adv_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_AUI_VC90.DLL" DiskId="1" Guid="572F858F-4EA8-4DFC-ADDC-64B0ACDBB295">
+                            <File Id="WXMSW30U_AUI_VC90.DLL" Name="wxmsw30u_aui_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_aui_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_CORE_VC90.DLL" DiskId="1" Guid="6488B6F0-197F-4445-A3A6-B6EF2A38D7C2">
+                            <File Id="WXMSW30U_CORE_VC90.DLL" Name="wxmsw30u_core_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_core_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_GL_VC90.DLL" DiskId="1" Guid="CE52F64F-FC9A-47EF-B40E-9657E3BF8126">
+                            <File Id="WXMSW30U_GL_VC90.DLL" Name="wxmsw30u_gl_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_gl_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_HTML_VC90.DLL" DiskId="1" Guid="4864634B-E5FC-4AAD-9C9B-0E078DB4C0F9">
+                            <File Id="WXMSW30U_HTML_VC90.DLL" Name="wxmsw30u_html_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_html_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_MEDIA_VC90.DLL" DiskId="1" Guid="3562BAC0-4B29-4C10-B9BF-D241B32E0CA7">
+                            <File Id="WXMSW30U_MEDIA_VC90.DLL" Name="wxmsw30u_media_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_media_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_PROPGRID_VC90.DLL" DiskId="1" Guid="E83E1B73-770D-43EF-BA3E-BA920F67A797">
+                            <File Id="WXMSW30U_PROPGRID_VC90.DLL" Name="wxmsw30u_propgrid_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_propgrid_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_RIBBON_VC90.DLL" DiskId="1" Guid="DE440D2E-6EED-4A52-A1B0-C6740D0EDCC4">
+                            <File Id="WXMSW30U_RIBBON_VC90.DLL" Name="wxmsw30u_ribbon_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_ribbon_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_RICHTEXT_VC90.DLL" DiskId="1" Guid="F353EB60-B5FB-4C8C-8684-10C52F490F14">
+                            <File Id="WXMSW30U_RICHTEXT_VC90.DLL" Name="wxmsw30u_richtext_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_richtext_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_STC_VC90.DLL" DiskId="1" Guid="A33DA1F5-85A0-4529-B6F0-074BD86279F2">
+                            <File Id="WXMSW30U_STC_VC90.DLL" Name="wxmsw30u_stc_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_stc_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_WEBVIEW_VC90.DLL" DiskId="1" Guid="9CAA9663-A27B-4C59-9AD1-3F909FC26A45">
+                            <File Id="WXMSW30U_WEBVIEW_VC90.DLL" Name="wxmsw30u_webview_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_webview_vc90.dll" />
+                        </Component>
+                        <Component Id="WXMSW30U_XRC_VC90.DLL" DiskId="1" Guid="D788A76D-5DEC-4A24-AB27-25B25E1213CB">
+                            <File Id="WXMSW30U_XRC_VC90.DLL" Name="wxmsw30u_xrc_vc90.dll" Source="$(var.inspauseDir)\lib\wxmsw30u_xrc_vc90.dll" />
+                        </Component>
+                        <Component Id="_CTYPES.PYD" DiskId="1" Guid="B8F874D1-AB17-4912-B731-1EB2E1884CCA">
+                            <File Id="_CTYPES.PYD" Name="_ctypes.pyd" Source="$(var.inspauseDir)\lib\_ctypes.pyd" />
+                        </Component>
+                        <Component Id="_HASHLIB.PYD" DiskId="1" Guid="50F7EC97-4CBB-494E-A63C-EB72A34BC54D">
+                            <File Id="_HASHLIB.PYD" Name="_hashlib.pyd" Source="$(var.inspauseDir)\lib\_hashlib.pyd" />
+                        </Component>
+                        <Component Id="_PORTAUDIO.PYD" DiskId="1" Guid="F589FC35-F4BB-4CC1-8619-256627CA1469">
+                            <File Id="_PORTAUDIO.PYD" Name="_portaudio.pyd" Source="$(var.inspauseDir)\lib\_portaudio.pyd" />
+                        </Component>
+                        <Component Id="_SOCKET.PYD" DiskId="1" Guid="4068E893-CFD6-4370-9414-54F26BB35CFE">
+                            <File Id="_SOCKET.PYD" Name="_socket.pyd" Source="$(var.inspauseDir)\lib\_socket.pyd" />
+                        </Component>
+                        <Component Id="_SSL.PYD" DiskId="1" Guid="B9DA8DB7-720B-4B9C-9DC2-2EECEE233D8F">
+                            <File Id="_SSL.PYD" Name="_ssl.pyd" Source="$(var.inspauseDir)\lib\_ssl.pyd" />
+                        </Component>
+                        <Component Id="_WIN32SYSLOADER.PYD" DiskId="1" Guid="A31022D8-1E53-48F8-8BF8-DB194B61CE41">
+                            <File Id="_WIN32SYSLOADER.PYD" Name="_win32sysloader.pyd" Source="$(var.inspauseDir)\lib\_win32sysloader.pyd" />
+                        </Component>
+                        <Component Id="_WINXPTHEME.PYD" DiskId="1" Guid="C956F270-A77B-4583-9C49-4B10E1C80D19">
+                            <File Id="_WINXPTHEME.PYD" Name="_winxptheme.pyd" Source="$(var.inspauseDir)\lib\_winxptheme.pyd" />
+                        </Component>
+                    </Directory>
+                </Directory>
+            </Directory>
+            <Directory Id="DesktopFolder" />
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ProgramMenuDir" Name="inspause">
+                    <Component Id="StartMenuShortcuts" Guid="3AF9F2C4-B735-4576-8DAC-6BA78424BB49">
+                        <RemoveFolder Id="ProgramMenuDir" On="uninstall" />
+                        <RegistryValue Root="HKCU" Key="Software\[Manufacturer]\[ProductName]" Type="string" Value="" />
+                        <Shortcut Id="UninstallProduct" Name="Uninstall" Description="Uninstalls inspause" Target="[System64Folder]msiexec.exe" Arguments="/x [ProductCode]" />
+                    </Component>
+                </Directory>
+            </Directory>
+        </Directory>
+        <Feature Id="DefaultFeature" Title="Main Feature" Level="1">
+            <ComponentRef Id="CHANGES.MD" />
+            <ComponentRef Id="FFMPEG.EXE" />
+            <ComponentRef Id="GUI.XRC" />
+            <ComponentRef Id="ICON.ICO" />
+            <ComponentRef Id="INSPAUSE.EXE" />
+            <ComponentRef Id="LICENSE.TXT" />
+            <ComponentRef Id="PYTHON27.DLL" />
+            <ComponentRef Id="README.MD" />
+            <ComponentRef Id="ZETTAI_HYOJUN43.ZIP" />
+            <ComponentRef Id="ZETTAI_HYOJUN45.ZIP" />
+            <ComponentRef Id="ZETTAI_NYUMON47.ZIP" />
+            <ComponentRef Id="ZETTAI_NYUMON49.ZIP" />
+            <ComponentRef Id="CUT.PNG" />
+            <ComponentRef Id="DELLBL.PNG" />
+            <ComponentRef Id="HEAD.PNG" />
+            <ComponentRef Id="INSERT.PNG" />
+            <ComponentRef Id="MERGELEFT.PNG" />
+            <ComponentRef Id="MERGERIGHT.PNG" />
+            <ComponentRef Id="PAUSE.PNG" />
+            <ComponentRef Id="PLAY.PNG" />
+            <ComponentRef Id="PLAYIFCUT.PNG" />
+            <ComponentRef Id="PLAYPAUSE.PNG" />
+            <ComponentRef Id="REDO.PNG" />
+            <ComponentRef Id="REMOVE.PNG" />
+            <ComponentRef Id="SAVE.PNG" />
+            <ComponentRef Id="SAVE2.PNG" />
+            <ComponentRef Id="SNDLBL.PNG" />
+            <ComponentRef Id="TAIL.PNG" />
+            <ComponentRef Id="UNDO.PNG" />
+            <ComponentRef Id="ZOOMIN.PNG" />
+            <ComponentRef Id="ZOOMOUT.PNG" />
+            <ComponentRef Id="BZ2.PYD" />
+            <ComponentRef Id="CRYPT32.DLL" />
+            <ComponentRef Id="LIBRARY.ZIP" />
+            <ComponentRef Id="OLEACC.DLL" />
+            <ComponentRef Id="PIL._IMAGING.PYD" />
+            <ComponentRef Id="PYEXPAT.PYD" />
+            <ComponentRef Id="PYTHONCOM27.DLL" />
+            <ComponentRef Id="PYWINTYPES27.DLL" />
+            <ComponentRef Id="SELECT.PYD" />
+            <ComponentRef Id="UNICODEDATA.PYD" />
+            <ComponentRef Id="WIN32API.PYD" />
+            <ComponentRef Id="WIN32CLIPBOARD.PYD" />
+            <ComponentRef Id="WIN32EVENT.PYD" />
+            <ComponentRef Id="WIN32GUI.PYD" />
+            <ComponentRef Id="WIN32PDH.PYD" />
+            <ComponentRef Id="WIN32PROCESS.PYD" />
+            <ComponentRef Id="WIN32TRACE.PYD" />
+            <ComponentRef Id="WIN32UI.PYD" />
+            <ComponentRef Id="WIN32UIOLE.PYD" />
+            <ComponentRef Id="WINXPGUI.PYD" />
+            <ComponentRef Id="WX.SIPLIB.PYD" />
+            <ComponentRef Id="WX._ADV.PYD" />
+            <ComponentRef Id="WX._AUI.PYD" />
+            <ComponentRef Id="WX._CORE.PYD" />
+            <ComponentRef Id="WX._DATAVIEW.PYD" />
+            <ComponentRef Id="WX._GLCANVAS.PYD" />
+            <ComponentRef Id="WX._GRID.PYD" />
+            <ComponentRef Id="WX._HTML.PYD" />
+            <ComponentRef Id="WX._HTML2.PYD" />
+            <ComponentRef Id="WX._MEDIA.PYD" />
+            <ComponentRef Id="WX._MSW.PYD" />
+            <ComponentRef Id="WX._PROPGRID.PYD" />
+            <ComponentRef Id="WX._RIBBON.PYD" />
+            <ComponentRef Id="WX._RICHTEXT.PYD" />
+            <ComponentRef Id="WX._STC.PYD" />
+            <ComponentRef Id="WX._XML.PYD" />
+            <ComponentRef Id="WX._XRC.PYD" />
+            <ComponentRef Id="WXBASE30U_NET_VC90.DLL" />
+            <ComponentRef Id="WXBASE30U_VC90.DLL" />
+            <ComponentRef Id="WXBASE30U_XML_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_ADV_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_AUI_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_CORE_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_GL_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_HTML_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_MEDIA_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_PROPGRID_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_RIBBON_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_RICHTEXT_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_STC_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_WEBVIEW_VC90.DLL" />
+            <ComponentRef Id="WXMSW30U_XRC_VC90.DLL" />
+            <ComponentRef Id="_CTYPES.PYD" />
+            <ComponentRef Id="_HASHLIB.PYD" />
+            <ComponentRef Id="_PORTAUDIO.PYD" />
+            <ComponentRef Id="_SOCKET.PYD" />
+            <ComponentRef Id="_SSL.PYD" />
+            <ComponentRef Id="_WIN32SYSLOADER.PYD" />
+            <ComponentRef Id="_WINXPTHEME.PYD" />
+            <ComponentRef Id="StartMenuShortcuts" />
+        </Feature>
+        <UI />
+        <Icon Id="DesktopIcon.exe" SourceFile="$(var.inspauseDir)\inspause.exe" />
+        <Icon Id="StartMenuIcon.exe" SourceFile="$(var.inspauseDir)\inspause.exe" />
+    </Product>
+</Wix>

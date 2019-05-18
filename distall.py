@@ -2,6 +2,7 @@
 
 from distutils.core import Command
 import os
+import shutil
 import subprocess
 import zipfile
 
@@ -54,34 +55,18 @@ def create_win_installer():
     os.chdir('dist')
 
     f = 'inspausew-%s' % inspause.__version__
-    template = os.path.join('..', 'inspause_template.wxs')
-    wxs0 = '%s.wxs' % f
-    obj0 = '%s.wixobj' % f
-    wxs1 = 'files_%s.wxs' % f
-    obj1 = 'files_%s.wixobj' % f
+    template = os.path.join('..', 'inspausew.wxs')
+    wxs = '%s.wxs' % f
+    obj = '%s.wixobj' % f
     dst = '%s.msi' % f
 
-    args = ['heat', 'dir', f, '-dr', 'INSPAUSE', '-cg', 'InspauseGroup',
-            '-gg', '-g1', '-sfrag', '-srd', '-sreg', '-var', 'var.inspauseDir',
-            '-out', wxs1]
+    shutil.copyfile(template, wxs)
+
+    args = ['candle', '-nologo', '-dversion=%s' % inspause.__version__,
+            '-dinspauseDir=%s' % f, wxs, '-out', obj]
     subprocess.call(args, shell=True)
 
-    create_wxs0(template, wxs0, inspause.__version__)
-
-    args = ['candle', '-nologo', wxs0, '-out', obj0]
-    subprocess.call(args, shell=True)
-
-    args = ['candle', '-nologo', '-dinspauseDir=' + f, wxs1, '-out', obj1]
-    subprocess.call(args, shell=True)
-
-    args = ['light', '-nologo', '-cultures:ja-jp', obj0, obj1, '-out', dst]
+    args = ['light', '-nologo', '-cultures:ja-jp', obj, '-out', dst]
     subprocess.call(args, shell=True)
 
     os.chdir('..')
-
-
-def create_wxs0(template, f, ver):
-    with open(f, 'w') as fout:
-        with open(template, 'r') as fin:
-            for line in fin:
-                fout.write(line.replace('{{VERSION}}', ver))

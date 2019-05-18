@@ -44,16 +44,18 @@ def add_py2exe_options(options):
         sys.exit(0)
 
     py2exe_options = {
-        'packages': ['wxPython', 'pyaudio', 'win32event', 'win32api',
+        'packages': ['wx', 'pyaudio', 'win32event', 'win32api',
                      'win32com', 'winerror'],
         'excludes': ['tcl', 'numpy', 'scipy'],
+        'dll_excludes': ['MSVCP90.dll', 'w9xpopen.exe',
+            # エラーで出てきたDLLを追加。おまえ、間違ってはいませんか。冗談じゃないかしら。
+            'api-ms-win-core-string-l1-1-0.dll', 'api-ms-win-core-psapi-l1-1-0.dll', 'api-ms-win-core-registry-l1-1-0.dll', 'api-ms-win-core-localization-l1-2-0.dll', 'api-ms-win-security-base-l1-1-0.dll', 'api-ms-win-core-string-obsolete-l1-1-0.dll', 'api-ms-win-core-delayload-l1-1-0.dll', 'api-ms-win-core-handle-l1-1-0.dll', 'api-ms-win-crt-private-l1-1-0.dll', 'api-ms-win-core-libraryloader-l1-2-1.dll', 'api-ms-win-core-memory-l1-1-0.dll', 'api-ms-win-core-heap-obsolete-l1-1-0.dll', 'api-ms-win-core-atoms-l1-1-0.dll', 'api-ms-win-core-processthreads-l1-1-1.dll', 'api-ms-win-core-heap-l2-1-0.dll', 'api-ms-win-core-delayload-l1-1-1.dll', 'api-ms-win-core-processthreads-l1-1-0.dll', 'api-ms-win-core-com-midlproxystub-l1-1-0.dll', 'api-ms-win-crt-string-l1-1-0.dll', 'api-ms-win-crt-runtime-l1-1-0.dll', 'api-ms-win-core-libraryloader-l1-2-0.dll', 'api-ms-win-core-errorhandling-l1-1-0.dll', 'api-ms-win-core-string-l2-1-0.dll', 'api-ms-win-core-synch-l1-2-0.dll', 'api-ms-win-core-profile-l1-1-0.dll', 'api-ms-win-core-synch-l1-1-0.dll', 'api-ms-win-core-threadpool-legacy-l1-1-0.dll', 'api-ms-win-core-interlocked-l1-1-0.dll', 'api-ms-win-core-debug-l1-1-0.dll', 'api-ms-win-core-sysinfo-l1-1-0.dll',
+            'RPCRT4.dll', 'OLEAUT32.dll', 'USER32.dll', 'SHELL32.dll', 'ole32.dll', 'COMDLG32.dll', 'WSOCK32.dll', 'COMCTL32.dll', 'ADVAPI32.dll', 'mfc90.dll', 'msvcrt.dll', 'WS2_32.dll', 'WINSPOOL.DRV', 'GDI32.dll', 'WINMM.dll', 'VERSION.dll', 'KERNEL32.dll', 'ntdll.dll', 'OPENGL32.dll', 'UxTheme.dll'],
         'compressed': 1,
         'optimize': 2,
         'bundle_files': 3,
         'dist_dir': 'dist/inspausew-%s' % inspause.__version__,
     }
-
-    manifest = get_manifest()
 
     files = ['gui.xrc', 'icon.ico', 'README.md', 'CHANGES.md', 'LICENSE.txt', 'ffmpeg.exe']
     options['data_files'] = [('backup', glob('backup\\*.zip')),
@@ -64,37 +66,7 @@ def add_py2exe_options(options):
     options['windows'] = [{
         'script': 'inspause.py',
         'icon_resources': [(0, 'icon.ico')],
-        #'other_resources': [(24, 1, manifest)],
     }]
-
-
-def get_manifest():
-    # this manifest enables the standard Windows XP/Vista-looking theme
-    return '''\
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<assembly xmlns="urn:schemas-microsoft-com:asm.v1"
-manifestVersion="1.0">
-<assemblyIdentity
-    version="0.64.1.0"
-    processorArchitecture="x86"
-    name="Controls"
-    type="win32"
-/>
-<description>Picalo</description>
-<dependency>
-    <dependentAssembly>
-        <assemblyIdentity
-            type="win32"
-            name="Microsoft.Windows.Common-Controls"
-            version="6.0.0.0"
-            processorArchitecture="X86"
-            publicKeyToken="6595b64144ccf1df"
-            language="*"
-        />
-    </dependentAssembly>
-</dependency>
-</assembly>
-'''
 
 
 if __name__ == '__main__':
