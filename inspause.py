@@ -6,8 +6,8 @@ InsPause メイン
 '''
 
 __author__  = 'vanya'
-__version__ = '2.10.7'
-__date__    = '2017-01-01'
+__version__ = '2.11.1'
+__date__    = '2019-05-18'
 
 web_site = 'http://vanya.jp.net/eng/inspause/'
 
@@ -195,6 +195,7 @@ class InsPause(wx.App):
         # ---- ポーズ時間
         self.NumCtrl('TextFactor', self.conf.factor, MIN_FACTOR, MAX_FACTOR)
         self.NumCtrl('TextAdd', self.conf.add_s, MIN_ADD_S, MAX_ADD_S)
+        xrc.XRCCTRL(self.frame, 'CheckNoWasteTime').Value = self.conf.no_waste_time
 
         # ---- バックアップ（コンボボックス、復元ボタン）
         self.cmb_backup = xrc.XRCCTRL(self.frame, 'CmbBackup')
@@ -619,14 +620,16 @@ Web Site: %s\
 
             try:
                 insp.insert_pause(snd_path, pause_path, labels_path,
-                        self.conf.factor, self.conf.add_s)
+                        self.conf.factor, self.conf.add_s,
+                        self.conf.no_waste_time)
             except Exception:
                 try:
                     if not pause_path.endswith('.wav'):
                         base = os.path.splitext(pause_path)[0]
                         pause_path = base + '.wav'
                         insp.insert_pause(snd_path, pause_path, labels_path,
-                                self.conf.factor, self.conf.add_s)
+                                self.conf.factor, self.conf.add_s,
+                                self.conf.no_waste_time)
                         print u'[Encoder Error] wav形式に自動的に変更しました:', pause_path
                         continue
                 except Exception as e:
@@ -743,9 +746,10 @@ Web Site: %s\
         add = self.conf.add_s
         rate = self.snd.getframerate()
         nframes = self.snd.getnframes(True)
+        no_waste_time = self.conf.no_waste_time
 
         labels = self.view.GetLabels()
-        tbl = Conv_table(labels, rate, nframes, factor, add)
+        tbl = Conv_table(labels, rate, nframes, factor, add, no_waste_time)
         self.snd.settable(tbl)
 
         self.snd.setpos(self.view.pos_f, True)
@@ -1019,6 +1023,11 @@ Web Site: %s\
     @binder(wx.EVT_TEXT, control='TextAdd')
     def OnAddChange(self, evt):
         self.conf.add_s = float(evt.EventObject.Value)
+
+    # NO_WASTE_TIME チェックボックス変更
+    @binder(wx.EVT_CHECKBOX, control='CheckNoWasteTime')
+    def OnNoWasteTimeChange(self, evt):
+        self.conf.no_waste_time = evt.EventObject.IsChecked()
 
     # -------- ポーズファイル作成
 

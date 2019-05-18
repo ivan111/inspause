@@ -99,6 +99,13 @@
                               <flag>wxRIGHT|wxALIGN_CENTRE_VERTICAL</flag>
                               <border>8</border>
                             </object>
+                            <object class="sizeritem">
+                              <object class="wxCheckBox" name="CheckNoWasteTime">
+                                <label>- 次のラベルまでの時間</label>
+                              </object>
+                              <flag>wxRIGHT|wxALIGN_CENTRE_VERTICAL</flag>
+                              <border>8</border>
+                            </object>
                             <label>ポーズ時間</label>
                             <orient>wxHORIZONTAL</orient>
                           </object>

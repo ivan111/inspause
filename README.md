@@ -31,7 +31,6 @@ CDからripしたsoundやDownloadしたsoundをloadし、節やsentenceの終了
 -------------------------------------------------------------------------------
 
 Windows, Mac, Linux  
-動作確認は、Windows7(64bit)とUbuntu13.10でしました。
 
 
 <a name="install"></a> インストール

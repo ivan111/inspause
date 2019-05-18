@@ -23,7 +23,7 @@ CHUNK_F = 4096
 
 
 def usage(app):
-    sys.stderr.write('Usage: %s source labels dest [factor] [add]\n\n' % app)
+    sys.stderr.write('Usage: %s source labels dest [factor] [add] [no_waste_time(=1)]\n\n' % app)
     sys.stderr.write(u'%.2f <= factor <= %.2f (default=%.2f)\n' %
                      (MIN_FACTOR, MAX_FACTOR, FACTOR))
     sys.stderr.write(u'%.2f <= add <= %.2f (default=%.2f)\n' %
@@ -33,12 +33,13 @@ def usage(app):
 def main():
     argc = len(sys.argv)
 
-    if argc < 4 or 6 < argc:
+    if argc < 4 or 7 < argc:
         usage(sys.argv[0])
         sys.exit(1)
 
     factor = FACTOR
     add_s = ADD_S
+    no_waste_time = False
 
     if argc >= 5:
         factor = float(sys.argv[4])
@@ -46,19 +47,23 @@ def main():
     if argc >= 6:
         add_s = float(sys.argv[5])
 
+    if argc >= 7:
+        if sys.argv[6] == '1':
+            no_waste_time = True
+
     src_file = sys.argv[1]
     labels_file = sys.argv[2]
     dst_file = sys.argv[3]
 
-    insert_pause(src_file, dst_file, labels_file, factor, add_s)
+    insert_pause(src_file, dst_file, labels_file, factor, add_s, no_waste_time)
 
 
-def insert_pause(src_file, dst_file, labels_file, factor, add_s):
+def insert_pause(src_file, dst_file, labels_file, factor, add_s, no_waste_time=False):
     in_snd = pausewave.open(src_file, 'rb')
     labels = Labels(labels_file)
     rate = in_snd.getframerate()
     nframes = in_snd.getnframes()
-    tbl = Conv_table(labels, rate, nframes, factor, add_s)
+    tbl = Conv_table(labels, rate, nframes, factor, add_s, no_waste_time)
     in_snd.settable(tbl)
     if src_file.endswith('.wav'):
         out_snd = pausewave.open(dst_file, 'wb', params=in_snd.getparams())

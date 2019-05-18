@@ -55,6 +55,7 @@ conf_data = [
 ['pause', [
     ['factor', T_FLOAT, FACTOR, (MIN_FACTOR, MAX_FACTOR)],
     ['add_s',  T_FLOAT, ADD_S,  (MIN_ADD_S, MAX_ADD_S)],
+    ['no_waste_time', T_BOOL, False, None],
 ]],
 ['view', [
     ['show_save2',    T_BOOL, True,  None],

@@ -2,7 +2,7 @@
 
 '''
 コンブ食べる
-ポーズ付き位置からポーズなし位置への変換するためのテーブル
+ポーズ付き位置からポーズなし位置へ変換するためのテーブル
 '''
 
 from label import LBL_PAUSE, LBL_CUT
@@ -46,9 +46,10 @@ class Conv_table(list):
     ポーズ入りの位置からポーズなしの位置への変換テーブル
     '''
 
-    def __init__(self, labels, rate, nframes, factor, add_s):
+    # @param no_waste_time ラベルとラベルの隙間の時間をポーズから差し引くか？
+    def __init__(self, labels, rate, nframes, factor, add_s, no_waste_time=False):
         list.__init__(self)
-        self._create_table(labels, rate, nframes, factor, add_s)
+        self._create_table(labels, rate, nframes, factor, add_s, no_waste_time)
         self.cur_i = 0
 
     def __str__(self):
@@ -110,7 +111,7 @@ class Conv_table(list):
     #--------------------------------------------------------------------------
     # 内部メソッド
 
-    def _create_table(self, labels, rate, nframes, factor, add_s):
+    def _create_table(self, labels, rate, nframes, factor, add_s, no_waste_time):
         add_f = int(add_s * rate)
 
         pos_f = 0  # ポーズやカットも考慮した位置
@@ -118,7 +119,7 @@ class Conv_table(list):
         rest_f = nframes  # 残りフレーム
         prev_ed_f = 0
 
-        for label in labels:
+        for i, label in enumerate(labels):
             st_f = int(label.start_s * rate)
             ed_f = int(label.end_s * rate)
 
@@ -163,6 +164,11 @@ class Conv_table(list):
                 pause_f = int(pause_f * factor)
                 pause_f = pause_f + add_f
 
+                # ラベルとラベルの隙間の時間をポーズから差し引く
+                if no_waste_time:
+                    # 次のポーズラベルの開始位置か音声の終了位置を取得
+                    pause_f -= self._get_waste_frames(nframes, rate, ed_f, labels[i+1:])
+
                 if pause_f > 0:
                     pos_f += pause_f
 
@@ -175,6 +181,23 @@ class Conv_table(list):
             wav_f += rest_f
 
             self._add_item(pos_f, wav_f, LBL_SOUND)
+
+    def _get_waste_frames(self, nframes, rate, pause_ed_f, labels):
+        waste_f = 0
+
+        for label in labels:
+            st_f = int(label.start_s * rate)
+            ed_f = int(label.end_s * rate)
+
+            if label.is_cut():
+                waste_f -= ed_f - st_f
+            else:
+                waste_f += st_f - pause_ed_f
+                return waste_f
+
+        # ポーズが見つからなければ音声の終了までの時間を無駄な時間とする
+        waste_f += nframes - pause_ed_f
+        return waste_f
 
     def _add_item(self, pos_ed_f, wav_ed_f, label):
         pos_st_f = 0
