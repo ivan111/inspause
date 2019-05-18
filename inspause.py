@@ -531,7 +531,7 @@ Web Site: %s\
             if self.snd.getnframes() == 0:
                 raise Exception('num of frames == 0')
         except Exception as e:
-            print str(e)
+            print_exception(e)
             msg = u'音声ファイルの読み込みに失敗しました。\n\n' \
                   u'音声ファイル=%s\nラベルファイル=%s' % (snd_path, labels_path)
             wx.MessageBox(msg)
@@ -633,7 +633,7 @@ Web Site: %s\
                         print u'[Encoder Error] wav形式に自動的に変更しました:', pause_path
                         continue
                 except Exception as e:
-                    print str(type(e)), str(e)
+                    print_exception(e)
                     err_num += 1
 
         dlg.Destroy()
@@ -871,7 +871,7 @@ Web Site: %s\
             try:
                 auto_shift(snd_path, labels_path)
             except Exception as e:
-                print str(e)
+                print_exception(e)
                 err_num += 1
 
         dlg.Destroy()
@@ -1448,6 +1448,13 @@ def get_cur_dir():
         cur_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 
     return cur_dir
+
+
+def print_exception(e):
+    if sys.platform == 'win32':
+        print str(type(e)), str(e).decode('cp932')
+    else:
+        print str(type(e)), str(e)
 
 
 if __name__ == '__main__':
