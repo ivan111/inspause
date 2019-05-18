@@ -60,7 +60,10 @@ def insert_pause(src_file, dst_file, labels_file, factor, add_s):
     nframes = in_snd.getnframes()
     tbl = Conv_table(labels, rate, nframes, factor, add_s)
     in_snd.settable(tbl)
-    out_snd = pausewave.open(dst_file, 'wb')
+    if src_file.endswith('.wav'):
+        out_snd = pausewave.open(dst_file, 'wb', params=in_snd.getparams())
+    else:
+        out_snd = pausewave.open(dst_file, 'wb')
 
     data = in_snd.readframes(CHUNK_F)
     while len(data) > 0:

@@ -22,7 +22,7 @@ if ffmpeg.has_ffmpeg:
     extensions += ffmpeg.EXTENSIONS
 
 
-def open(f, mode='rb', prg=None):
+def open(f, mode='rb', prg=None, params=None):
     '''
     音声ファイルを開く。
 
@@ -33,7 +33,10 @@ def open(f, mode='rb', prg=None):
         wav = wave.open(f, mode)
 
         if mode in ('w', 'wb'):
-            wav.setparams((2, 2, 44100, 0, 'NONE', 'not compressed'))
+            if params:
+                wav.setparams(params)
+            else:
+                wav.setparams((2, 2, 44100, 0, 'NONE', 'not compressed'))
     elif ffmpeg.has_ffmpeg:
         wav = ffmpeg.open(f, mode, prg)
     else:
